@@ -4,6 +4,16 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 
+if not os.path.exists('OGL.txt'):
+    print('Please have the Open Game License text within the folder')
+    exit()
+
+print('By using this tool, you agree to the OGL')
+agreement = input('Type N disagree and leave the tool: ')
+if agreement.upper() == 'N':
+    print('thank you')
+    exit()
+
 file = open('Website/feats-sublist-data.json')
 
 data = json.load(file)
@@ -36,16 +46,16 @@ def activityToString(activity, isSymbol=True):
         unitType = activity.get('unit')
     if 'number' in activity and unitType == 'action':
         if isSymbol:
-            output = '&#14' + ('1' if activity.get('number') == 1 else str(activity.get('number') + 1)) + ';'
+            output = '[a]&#14' + ('1' if activity.get('number') == 1 else str(activity.get('number') + 1)) + ';'
         else:
             output += (str)(activity.get('number'))
     if not isSymbol:
         output += unitType
     if unitType == 'reaction' and isSymbol:
-        output = '&#157;'
+        output = '[a]&#157;'
     if unitType == 'free':
         if isSymbol:
-            output = '&#129;'
+            output = '[a]&#129;'
         else:
             output += 'action'
     return output
@@ -117,11 +127,11 @@ def listToXML(parentXML, list):
 
 
 def boldTextAndBody(parentXML, boldText, bodyText):
-    root = ET.SubElement(parentXML, 'p')
-    bold = ET.SubElement(root, 'b')
+    bold = ET.SubElement(parentXML, 'h')
     bold.text = stringFormatter(boldText)
+    root = ET.SubElement(parentXML, 'p')
     root.text = stringFormatter(bodyText)
-
+    
 
 def abilityToXML(parentXML, dictionary):
     titleField = ET.SubElement(parentXML, 'p')
@@ -181,7 +191,7 @@ def writeDBFile(root):
                     featArchetypeRestriction = featType.get('archetype')
                     if type(featArchetypeRestriction) != bool:
                         for i in range(0, len(featArchetypeRestriction)):
-                            archetype.text += featArchetypeRestriction[i].upper()
+                            archetype.text += featArchetypeRestriction[i]
                             if(i < len(featArchetypeRestriction) - 1):
                                 archetype.text += ', '
 
@@ -288,6 +298,22 @@ def zipping(db, definition, name):
     print('Module Written')
 
 
+def openGameLicenseStory(rootXML):
+    encounterBody = ET.SubElement(rootXML, 'encounter')
+    licenseBody = ET.SubElement(encounterBody, 'id-00001')
+    nameBody = ET.SubElement(licenseBody, 'name', typeString)
+    nameBody.text = 'OGL'
+    textBody = ET.SubElement(licenseBody, 'text', typeFormattedText)
+    heading = ET.SubElement(textBody, 'h')
+    heading.text = 'Open Game License'
+    preface = ET.SubElement(licenseBody, 'p')
+    preface.text = 'The following text is the property of Wizards of the Coast, Inc. and is Copyright 2000 Wizards of the Coast, Inc ("Wizards"). All Rights Reserved.'
+    with open('OGL.txt') as text:
+        for line in text:
+            body = ET.SubElement(textBody, 'p')
+            body.text = line
+
+
 moduleName = 'pf2e_tools'
 typeString = {'type': 'string'}
 typeFormattedText = {'type': 'formattedtext'}
@@ -295,14 +321,18 @@ typeNumber = {'type': 'number'}
 rootXML = ET.Element(
     'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
 
+
+openGameLicenseStory(rootXML)
 writeDBFile(rootXML)
 
 tree = ET.ElementTree(rootXML)
 ET.indent(tree, '\t', level=0)
 
 with open('db.xml', 'wb') as files:
-    files.write(bytes('<?xml version="1.0" encoding="utf-8"?>\n', 'utf-8'))
-    tree.write(files)
+    # tree.write(files, encoding='utf-8', xml_declaration=True)
+    ET.indent(rootXML, level=0)
+    replaced = ET.tostring(rootXML, encoding='utf-8', method='xml', xml_declaration=True).replace(b'[a]&amp;', b'&')
+    files.write(replaced)
 
 
 rootXML = ET.Element(
@@ -314,7 +344,6 @@ tree = ET.ElementTree(rootXML)
 ET.indent(tree, '\t', level=0)
 
 with open('definition.xml', 'wb') as files:
-    files.write(bytes('<?xml version="1.0" encoding="utf-8"?>\n', 'utf-8'))
-    tree.write(files)
+    tree.write(files, encoding='utf-8', xml_declaration=True)
 
 zipping(os.path.relpath('db.xml'), os.path.relpath('definition.xml'), moduleName)
