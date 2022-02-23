@@ -8,6 +8,10 @@ if not os.path.exists('OGL.txt'):
     print('Please have the Open Game License text within the folder')
     exit()
 
+if not os.path.exists('UsageRequirements.txt'):
+    print('Please have the Usage Requirements text within the folder')
+
+print('By using this tool, you agree to the Usage Requirements')
 print('By using this tool, you agree to the OGL')
 agreement = input('Type N disagree and leave the tool: ')
 if agreement.upper() == 'N':
@@ -309,6 +313,20 @@ def openGameLicenseStory(rootXML):
     preface = ET.SubElement(licenseBody, 'p')
     preface.text = 'The following text is the property of Wizards of the Coast, Inc. and is Copyright 2000 Wizards of the Coast, Inc ("Wizards"). All Rights Reserved.'
     with open('OGL.txt') as text:
+        for line in text:
+            body = ET.SubElement(textBody, 'p')
+            body.text = line
+
+
+def usageRequirementsStory(rootXML):
+    encounterBody = ET.SubElement(rootXML, 'encounter')
+    licenseBody = ET.SubElement(encounterBody, 'id-00002')
+    nameBody = ET.SubElement(licenseBody, 'name', typeString)
+    nameBody.text = 'Usage Requirements'
+    textBody = ET.SubElement(licenseBody, 'text', typeFormattedText)
+    heading = ET.SubElement(textBody, 'h')
+    heading.text = 'This Fantasy Grounds library module uses trademarks'
+    with open('UsageRequirements.txt') as text:
         for line in text:
             body = ET.SubElement(textBody, 'p')
             body.text = line
