@@ -14,7 +14,7 @@ if agreement.upper() == 'N':
     print('thank you')
     exit()
 
-file = open('Website/feats-sublist-data.json')
+file = open('feats-sublist-data.json')
 
 data = json.load(file)
 
