@@ -1,0 +1,60 @@
+Feat Notes:
+
+Cost is an entry that should go before the rest of the entries.  It isn't common but is a case to catch
+
+About Entries - 
+Every feat has an entry.  There is no need to check for entries.
+Types are usually an indicator on how to parse info.
+All types are strings
+
+Entry spread - 
+successDegree
+        type 89
+        entries 89 (type is dictionary)
+    entries are a list of success and failures.  You should loop through each and add the key in bold and the value as a parsed string
+
+list
+        type 40
+        items 40 (type is array)
+    A list of text where each first word of a new paragraph is in bold.  
+
+table
+        type 2
+        Ignore
+        source 1
+        Ignore
+        page 1
+        Ignore
+        labelRowIdx 2
+        Ignore
+        colStyles 1
+        rows 2
+        footnotes 1
+
+On the first line should be the name, activity, components, traits
+Then loop through the other elements that isn't entries
+Skip style 
+ability
+        type 29
+        name 27 (type is string)
+        activity 27 (type is dictionary, it uses the typical activity parameters)
+        requirements 8 (type is string)
+        entries 29 (this should be treated like a brand new entry)
+        trigger 9 (type is string)
+        traits 17 (type is array)
+        components 2 (type is array of strings)
+        Should be a line itself
+        frequency 8
+        Style is not going to be used
+        style 2
+        Cost isn't used in the displaying at all.  It can be ignored
+        cost 4
+
+pf2-options
+        type 1
+        items 1
+
+hr
+        type 1
+        style 1
+        entries 1
