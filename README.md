@@ -9,3 +9,6 @@ You can then take the produced mod file and drop it into your mod folder for fan
 Automation is currently not supported as my skill level isn't that good.
 
 Happy gaming! :)
+
+Usage Rights - https://paizo.com/community/communityuse
+PF2E OGL - https://pf2etools.com/licenses.html
