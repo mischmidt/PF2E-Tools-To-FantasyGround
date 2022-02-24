@@ -4,25 +4,10 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 
-if not os.path.exists('OGL.txt'):
-    print('Please have the Open Game License text within the folder')
-    exit()
-
-if not os.path.exists('UsageRequirements.txt'):
-    print('Please have the Usage Requirements text within the folder')
-
-print('By using this tool, you agree to the Usage Requirements')
-print('By using this tool, you agree to the OGL')
-agreement = input('Type N disagree and leave the tool: ')
-if agreement.upper() == 'N':
-    print('thank you')
-    exit()
-
-file = open('feats-sublist-data.json')
-
-data = json.load(file)
-
-file.close()
+moduleName = 'pf2e_tools'
+typeString = {'type': 'string'}
+typeFormattedText = {'type': 'formattedtext'}
+typeNumber = {'type': 'number'}
 
 def stringFormatter(s):
     if s is None:
@@ -171,7 +156,19 @@ def abilityToXML(parentXML, dictionary):
     if 'entries' in dictionary:
         entriesToXML(parentXML, dictionary.get('entries'))
 
-def writeDBFile(root):
+def optionListToString(optionsList):
+    output = ''
+    endLength = len(optionsList)
+    for i in range(0, endLength):
+        output += stringFormatter(optionsList[i])
+        if i < endLength - 1:
+            output += ', or '
+    return output
+
+def writeFeatDBFile(root):
+    file = open('feats-sublist-data.json')
+    data = json.load(file)
+    file.close()
     id = 1
     featElement = ET.SubElement(root, 'feat')
     category = ET.SubElement(featElement, 'category', {'name': moduleName})
@@ -264,27 +261,59 @@ def writeDBFile(root):
         id = id + 1
 
 
-    # Append to the very end
-    library = ET.SubElement(root, 'library')
-    modulesSubElement = ET.SubElement(library, moduleName, {'static': 'true'})
-    # I have no idea what this does
-    categoryName = ET.SubElement(modulesSubElement, 'categoryname', typeString)
-    nameElement = ET.SubElement(modulesSubElement, 'name', typeString)
-    nameElement.text = moduleName
 
-    libraryEntries = ET.SubElement(modulesSubElement, 'entries')
-    libraryFeat = ET.SubElement(libraryEntries, 'feat')
-    libraryLink = ET.SubElement(libraryFeat, 'librarylink', {
-                                'type': 'windowreference'})
-    libraryClass = ET.SubElement(libraryLink, 'class')
-    libraryClass.text = 'reference_list'
-    recordName = ET.SubElement(libraryLink, 'recordname')
-    recordName.text = '..'
-    libraryType = ET.SubElement(libraryFeat, 'name', typeString)
-    libraryType.text = 'Feats'
-    recordType = ET.SubElement(libraryFeat, 'recordtype', typeString)
-    recordType.text = 'feat'
+def writeBackgrounds(rootXML):
+    file = open('backgrounds-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = 1
+    featElement = ET.SubElement(rootXML, 'background')
+    category = ET.SubElement(featElement, 'category', {'name': moduleName})
+    for background in data:
+        backgroundBody = ET.SubElement(category, f'id-{id:05}')
 
+        boostsBody = ET.SubElement(backgroundBody, 'abilityboost', typeString)
+        if 'boosts' in background:
+            boostsBody.text = ''
+            endLength = len(background.get('boosts'))
+            for i in range(0, endLength):
+                boostsBody.text += stringFormatter(background.get('boosts')[i])
+                if i < endLength - 1:
+                    if background.get('boosts')[i + 1] != 'Free':
+                        boostsBody.text += ', or '
+                    else:
+                        break
+
+        loreBody = ET.SubElement(backgroundBody, 'loreskill', typeString)
+        if 'lore' in background: 
+            loreBody.text = optionListToString(background.get('lore'))
+
+        nameBody = ET.SubElement(backgroundBody, 'name', typeString)
+        if 'name' in background:
+            nameBody.text = stringFormatter(background.get('name')).upper()
+
+        featBody = ET.SubElement(backgroundBody, 'skillfeat', typeString)
+        if 'feat' in background:
+            if type(background.get('feat')) is list:
+                featBody.text = optionListToString(background.get('feat'))
+            else:
+                featBody.text = stringFormatter(background.get('feat'))
+
+        sourceBody = ET.SubElement(backgroundBody, 'source', typeString)
+        if 'source' in background:
+            sourceBody.text = stringFormatter(background.get('source'))
+
+        entriesGroup = ET.SubElement(backgroundBody, 'text', typeFormattedText)
+        if 'entries' in background:
+            entriesToXML(entriesGroup, background.get('entries'))
+
+        skillsBody = ET.SubElement(backgroundBody, 'trainedskill', typeString)
+        if 'skills' in background:\
+            skillsBody.text = optionListToString(background.get('skills'))
+        
+        id += 1
+
+    
 def writeDefinition(root, naming):
     nameBody = ET.SubElement(root, 'name')
     nameBody.text = naming
@@ -293,6 +322,19 @@ def writeDefinition(root, naming):
     authorBody.text = 'Holo74'
     ruleSetBody = ET.SubElement(root, 'ruleset')
     ruleSetBody.text = 'PFRPG2'
+
+def writeLibraryEntries(libraryEntry, displayName, name):
+    libraryFeat = ET.SubElement(libraryEntry, name)
+    libraryLink = ET.SubElement(libraryFeat, 'librarylink', {
+                                'type': 'windowreference'})
+    libraryClass = ET.SubElement(libraryLink, 'class')
+    libraryClass.text = 'reference_list'
+    recordName = ET.SubElement(libraryLink, 'recordname')
+    recordName.text = '..'
+    libraryType = ET.SubElement(libraryFeat, 'name', typeString)
+    libraryType.text = displayName
+    recordType = ET.SubElement(libraryFeat, 'recordtype', typeString)
+    recordType.text = name
 
 def zipping(db, definition, name):
     with zipfile.ZipFile(name + '.mod', 'w') as file:
@@ -303,8 +345,7 @@ def zipping(db, definition, name):
 
 
 def openGameLicenseStory(rootXML):
-    encounterBody = ET.SubElement(rootXML, 'encounter')
-    licenseBody = ET.SubElement(encounterBody, 'id-00001')
+    licenseBody = ET.SubElement(rootXML, 'id-00001')
     nameBody = ET.SubElement(licenseBody, 'name', typeString)
     nameBody.text = 'OGL'
     textBody = ET.SubElement(licenseBody, 'text', typeFormattedText)
@@ -319,49 +360,82 @@ def openGameLicenseStory(rootXML):
 
 
 def usageRequirementsStory(rootXML):
-    encounterBody = ET.SubElement(rootXML, 'encounter')
-    licenseBody = ET.SubElement(encounterBody, 'id-00002')
+    licenseBody = ET.SubElement(rootXML, 'id-00002')
     nameBody = ET.SubElement(licenseBody, 'name', typeString)
     nameBody.text = 'Usage Requirements'
     textBody = ET.SubElement(licenseBody, 'text', typeFormattedText)
     heading = ET.SubElement(textBody, 'h')
     heading.text = 'This Fantasy Grounds library module uses trademarks'
-    with open('UsageRequirements.txt') as text:
+    with open('UsageRequirement.txt') as text:
         for line in text:
             body = ET.SubElement(textBody, 'p')
             body.text = line
 
+def writeDBFile():
+    rootXML = ET.Element(
+        'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
+    library = ET.SubElement(rootXML, 'library')
+    modulesSubElement = ET.SubElement(library, moduleName, {'static': 'true'})
+    categoryName = ET.SubElement(modulesSubElement, 'categoryname', typeString)
+    nameElement = ET.SubElement(modulesSubElement, 'name', typeString)
+    nameElement.text = moduleName
+    storyEntries = ET.SubElement(rootXML, 'encounter')
 
-moduleName = 'pf2e_tools'
-typeString = {'type': 'string'}
-typeFormattedText = {'type': 'formattedtext'}
-typeNumber = {'type': 'number'}
-rootXML = ET.Element(
-    'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
+    openGameLicenseStory(storyEntries)
+    usageRequirementsStory(storyEntries)
 
+    if os.path.exists('feats-sublist-data.json'):
+        writeFeatDBFile(rootXML)
+    
+    if os.path.exists('backgrounds-sublist-data.json'):
+        writeBackgrounds(rootXML)
 
-openGameLicenseStory(rootXML)
-writeDBFile(rootXML)
+    libraryEntries = ET.SubElement(library, 'entries')
+    if os.path.exists('feats-sublist-data.json'):
+        writeLibraryEntries(libraryEntries, 'Feats', 'feat')
+    
+    if os.path.exists('backgrounds-sublist-data.json'):
+        writeLibraryEntries(libraryEntries, 'Backgrounds', 'background')
 
-tree = ET.ElementTree(rootXML)
-ET.indent(tree, '\t', level=0)
+    tree = ET.ElementTree(rootXML)
+    ET.indent(tree, '\t', level=0)
 
-with open('db.xml', 'wb') as files:
-    # tree.write(files, encoding='utf-8', xml_declaration=True)
-    ET.indent(rootXML, level=0)
-    replaced = ET.tostring(rootXML, encoding='utf-8', method='xml', xml_declaration=True).replace(b'[a]&amp;', b'&')
-    files.write(replaced)
+    with open('db.xml', 'wb') as files:
+        ET.indent(rootXML, level=0)
+        replaced = ET.tostring(rootXML, encoding='utf-8', method='xml', xml_declaration=True).replace(b'[a]&amp;', b'&')
+        files.write(replaced)
 
+def writeDefinitionFile():
+    rootXML = ET.Element(
+        'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
 
-rootXML = ET.Element(
-    'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
+    writeDefinition(rootXML, moduleName)
 
-writeDefinition(rootXML, moduleName)
+    tree = ET.ElementTree(rootXML)
+    ET.indent(tree, '\t', level=0)
 
-tree = ET.ElementTree(rootXML)
-ET.indent(tree, '\t', level=0)
+    with open('definition.xml', 'wb') as files:
+        tree.write(files, encoding='utf-8', xml_declaration=True)
 
-with open('definition.xml', 'wb') as files:
-    tree.write(files, encoding='utf-8', xml_declaration=True)
+def main():
+    if not os.path.exists('OGL.txt'):
+        print('Please have the Open Game License text within the folder')
+        exit()
 
-zipping(os.path.relpath('db.xml'), os.path.relpath('definition.xml'), moduleName)
+    if not os.path.exists('UsageRequirements.txt'):
+        print('Please have the Usage Requirements text within the folder')
+
+    print('By using this tool, you agree to the Usage Requirements')
+    print('By using this tool, you agree to the OGL')
+    agreement = input('Type N disagree and leave the tool: ')
+    if agreement.upper() == 'N':
+        print('thank you')
+        exit()
+    
+    writeDBFile()
+    writeDefinitionFile()
+
+    zipping(os.path.relpath('db.xml'), os.path.relpath('definition.xml'), moduleName)
+
+if __name__ == "__main__":
+    main()
