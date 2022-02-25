@@ -382,7 +382,7 @@ def writeSpells(rootXML):
         createListToXMLString(spellBody, spell.get('traits'), 'traits')
         areaElement = ET.SubElement(spellBody, 'area', typeString)
         if 'area' in spell:
-            areaElement.text = stringFormatter(spell.get('area').get('entries'))
+            areaElement.text = stringFormatter(spell.get('area').get('entry'))
         createStringTypeElement(spellBody, 'cost', spell.get('cost'))
         createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
         effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
