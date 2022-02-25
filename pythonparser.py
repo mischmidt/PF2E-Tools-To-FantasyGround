@@ -24,7 +24,7 @@ def stringFormatter(s):
         else:
             parsing = re.sub('@([a-zA-Z]+)\s', '', parsing)
             parsing = re.sub('\|(.+)', '', parsing)
-        entrySafe += parsing
+        entrySafe += parsing.replace('\n', ' ')
     return entrySafe
 
 
@@ -52,7 +52,7 @@ def activityToString(activity, isSymbol=True):
     return output
 
 
-def entriesToXML(parentXML, entries):
+def entriesToXML(parentXML, entries, skipTypes=[]):
     if entries is None:
         return
     for entry in entries:
@@ -61,6 +61,8 @@ def entriesToXML(parentXML, entries):
             baseEntry.text = stringFormatter(entry)
         else:
             entryType = entry.get('type')
+            if entryType in skipTypes:
+                continue
             if entryType == 'successDegree':
                 successDegreeToXML(parentXML, entry.get('entries'))
             elif entryType == 'list':
@@ -73,9 +75,32 @@ def entriesToXML(parentXML, entries):
                 pf2_optionsToXML(parentXML, entry.get('items'))
             elif entryType == 'hr':
                 hrToXML(parentXML, entry.get('entries'))
+            elif entryType == 'affliction':
+                afflictionToXML(parentXML, entry)
+            elif entryType == 'lvlEffect':
+                lvlEffectToXML(parentXML, entry.get('entries'))
             else:
                 print('Unhandled Entry type: ' + entry.get('type'))
 
+def lvlEffectToXML(parentXML, entries):
+    for entry in entries:
+        entryElement = ET.SubElement(parentXML, 'p')
+        entryElement.text = boldString(stringFormatter(entry.get('range'))) + ' '
+        entryElement.text += stringFormatter(entry.get('entry'))
+
+def afflictionToXML(parentXML, dictionary):
+    titleElement = ET.SubElement(parentXML, 'p')
+    titleElement.text = boldString(dictionary.get('name')) + ' '
+    titleElement.text += '(' + listToString(dictionary.get('traits')) + '); '
+    if 'level' in dictionary:
+        titleElement.text += 'Level ' + str(dictionary.get('level')) + '; '
+    if dictionary.get('note') is not None:
+        titleElement.text += stringFormatter(dictionary.get('note'))
+    for stage in dictionary.get('stages'):
+        stageElement = ET.SubElement(parentXML, 'p')
+        stageElement.text = boldString('Stage ' + str(stage.get('stage')) + ' ')
+        stageElement.text += stringFormatter(stage.get('entry')) + ' '
+        stageElement.text += '(' + stringFormatter(stage.get('duration')) + ').'
 
 def tableToXML(parentXML, rows, footnotes=[]):
     table = ET.SubElement(parentXML, 'table')
@@ -109,8 +134,7 @@ def successDegreeToXML(parentXML, success):
     root = ET.SubElement(parentXML, 'list')
     for states in success:
         successRate = ET.SubElement(root, 'li')
-        keyword = ET.SubElement(successRate, 'b')
-        keyword.text = stringFormatter(states)
+        successRate.text = boldString(states)
         successRate.text = stringFormatter(success.get(states))
 
 
@@ -122,24 +146,23 @@ def listToXML(parentXML, list):
 
 
 def boldTextAndBody(parentXML, boldText, bodyText):
-    bold = ET.SubElement(parentXML, 'h')
-    bold.text = stringFormatter(boldText)
     root = ET.SubElement(parentXML, 'p')
-    root.text = stringFormatter(bodyText)
+    root.text = boldString(boldText)
+    root.text += stringFormatter(bodyText)
     
+def boldString(string):
+    return '<b>' + stringFormatter(string) + '</b>'
 
 def abilityToXML(parentXML, dictionary):
     titleField = ET.SubElement(parentXML, 'p')
-    titleBolded = ET.SubElement(titleField, 'b')
-    titleBolded.text = ''
     titleField.text = ''
     if 'name' in dictionary:
-        titleBolded.text += stringFormatter(dictionary.get('name')) + ' '
+        titleField.text += boldString(dictionary.get('name')) + ' '
     else:
-        titleBolded.text = 'Activate'
+        titleField.text = boldString('Activate')
     if 'activity' in dictionary:
         activity = activityToString(dictionary.get('activity'))
-        titleBolded.text += activity + ' '
+        titleField.text += boldString(activity) + ' '
     if 'components' in dictionary:
         for component in dictionary.get('components'):
             titleField.text += stringFormatter(component) + ' '
@@ -378,6 +401,7 @@ def writeSpells(rootXML):
         spellBody = ET.SubElement(category, f'id-{id:05}')
         createStringTypeElement(spellBody, 'name', spell.get('name'))
         createStringTypeElement(spellBody, 'source', spell.get('source'))
+        createStringTypeElement(spellBody, 'spelltype', spell.get('type').upper())
         createStringTypeElement(spellBody, 'spelltypelabel', spell.get('type')[0])
         createListToXMLString(spellBody, spell.get('traits'), 'traits')
         areaElement = ET.SubElement(spellBody, 'area', typeString)
@@ -386,10 +410,10 @@ def writeSpells(rootXML):
         createStringTypeElement(spellBody, 'cost', spell.get('cost'))
         createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
         effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
-        entriesToXML(effectsElement, spell.get('entries'))
+        entriesToXML(effectsElement, spell.get('entries'), ['successDegree'])
         if spell.get('heightened').get('heightened'):
             if spell.get('heightened').get('plus_x') is not None:
-                properNumber = numbersToProperNumber[spell.get('heightened').get('plus_x').get('level')]
+                properNumber = '(+' + str(spell.get('heightened').get('plus_x').get('level')) + ')'
                 heightenedEntry = stringFormatter(spell.get('heightened').get('plus_x').get('entry'))
                 heightenedElement = ET.SubElement(spellBody, 'heightened', typeFormattedText)
                 boldTextAndBody(heightenedElement, properNumber, heightenedEntry)
@@ -532,6 +556,8 @@ def writeDBFile():
     with open('db.xml', 'wb') as files:
         ET.indent(rootXML, level=0)
         replaced = ET.tostring(rootXML, encoding='utf-8', method='xml', xml_declaration=True).replace(b'[a]&amp;', b'&')
+        replaced = replaced.replace(b'&lt;', b'<')
+        replaced = replaced.replace(b'&gt;', b'>')
         files.write(replaced)
 
 def writeDefinitionFile():
