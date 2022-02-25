@@ -8,6 +8,8 @@ moduleName = 'pf2e_tools'
 typeString = {'type': 'string'}
 typeFormattedText = {'type': 'formattedtext'}
 typeNumber = {'type': 'number'}
+actionParser = {'1' : '[a]&#141;', '2' : '[a]&#143;', '3' : "[a]&#144;", 'R' : '[a]&#157;', 'F' : '[a]&#129;'}
+numbersToProperNumber = {1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 6 : '6th', 7 : '7th', 8 : '8th', 9 : '9th', 10 : '10th'}
 
 def stringFormatter(s):
     if s is None:
@@ -17,8 +19,8 @@ def stringFormatter(s):
     for split in re.split('{|}', entryRaw):
         parsing = split
         if re.search('(@as+)\s', parsing) is not None:
-            actions = int(split[len(split) - 1])
-            parsing = '[' + (actions * 'A') + ']'
+            stringEnding = split[len(split) - 1]
+            parsing = actionParser[str(stringEnding)]
         else:
             parsing = re.sub('@([a-zA-Z]+)\s', '', parsing)
             parsing = re.sub('\|(.+)', '', parsing)
@@ -35,22 +37,24 @@ def activityToString(activity, isSymbol=True):
         unitType = activity.get('unit')
     if 'number' in activity and unitType == 'action':
         if isSymbol:
-            output = '[a]&#14' + ('1' if activity.get('number') == 1 else str(activity.get('number') + 1)) + ';'
+            output = actionParser[str(activity.get('number'))]
         else:
             output += (str)(activity.get('number'))
     if not isSymbol:
         output += unitType
     if unitType == 'reaction' and isSymbol:
-        output = '[a]&#157;'
+        output = actionParser['R']
     if unitType == 'free':
         if isSymbol:
-            output = '[a]&#129;'
+            output = actionParser['F']
         else:
             output += 'action'
     return output
 
 
 def entriesToXML(parentXML, entries):
+    if entries is None:
+        return
     for entry in entries:
         if type(entry) is not dict:
             baseEntry = ET.SubElement(parentXML, 'p')
@@ -69,6 +73,8 @@ def entriesToXML(parentXML, entries):
                 pf2_optionsToXML(parentXML, entry.get('items'))
             elif entryType == 'hr':
                 hrToXML(parentXML, entry.get('entries'))
+            else:
+                print('Unhandled Entry type: ' + entry.get('type'))
 
 
 def tableToXML(parentXML, rows, footnotes=[]):
@@ -164,6 +170,53 @@ def optionListToString(optionsList):
         if i < endLength - 1:
             output += ', or '
     return output
+
+def listToString(list):
+    output = ''
+    endLength = len(list)
+    for i in range(0, endLength):
+        output += stringFormatter(list[i])
+        if i < endLength - 1:
+            output += ',  '
+    return output
+
+def createNumberTypeElement(parentXML, elementName, elementBody):
+    genericBody = ET.SubElement(parentXML, elementName, typeNumber)
+    genericBody.text = ''
+    if elementBody is not None:
+        genericBody.text = str(elementBody)
+
+def createStringTypeElement(parentXML, elementName, elementBody):
+    genericBody = ET.SubElement(parentXML, elementName, typeString)
+    genericBody.text = ''
+    if elementBody is not None:
+        genericBody.text = stringFormatter(elementBody)
+
+def createListToXMLString(parentXML, list, elementName, toUpper=True):
+    listElement = ET.SubElement(parentXML, elementName, typeString)
+    output = ''
+    if list:
+        endLength = len(list)
+        for i in range(0, endLength):
+            word = stringFormatter(list[i])
+            word = word.upper() if toUpper else word
+            output += word
+            if i < endLength - 1:
+                output += ', '
+    listElement.text = output
+
+
+def spellHeightenedListToXML(parentXML, list, elementName='heightened'):
+    heightenedElement = ET.SubElement(parentXML, elementName, typeFormattedText)
+    for entry in list:
+        entryBodyElement = ET.SubElement(heightenedElement, 'p')
+        entryBodyElement.text = '(+ ' + str(entry.get('level')) + ') '
+        if type(entry.get('entry')) is str:
+            entryBodyElement.text += stringFormatter(entry.get('entry'))
+        else:
+            entriesToXML(heightenedElement, entry.get('entry'))
+        
+    
 
 def writeFeatDBFile(root):
     file = open('feats-sublist-data.json')
@@ -313,7 +366,77 @@ def writeBackgrounds(rootXML):
         
         id += 1
 
-    
+
+def writeSpells(rootXML):
+    file = open('spells-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = 1
+    spellElement = ET.SubElement(rootXML, 'spell')
+    category = ET.SubElement(spellElement, 'category', {'name': moduleName})
+    for spell in data:
+        spellBody = ET.SubElement(category, f'id-{id:05}')
+        createStringTypeElement(spellBody, 'name', spell.get('name'))
+        createStringTypeElement(spellBody, 'source', spell.get('source'))
+        createStringTypeElement(spellBody, 'spelltypelabel', spell.get('type')[0])
+        createListToXMLString(spellBody, spell.get('traits'), 'traits')
+        areaElement = ET.SubElement(spellBody, 'area', typeString)
+        if 'area' in spell:
+            areaElement.text = stringFormatter(spell.get('area').get('entries'))
+        createStringTypeElement(spellBody, 'cost', spell.get('cost'))
+        createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
+        effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
+        entriesToXML(effectsElement, spell.get('entries'))
+        if spell.get('heightened').get('heightened'):
+            if spell.get('heightened').get('plus_x') is not None:
+                properNumber = numbersToProperNumber[spell.get('heightened').get('plus_x').get('level')]
+                heightenedEntry = stringFormatter(spell.get('heightened').get('plus_x').get('entry'))
+                heightenedElement = ET.SubElement(spellBody, 'heightened', typeFormattedText)
+                boldTextAndBody(heightenedElement, properNumber, heightenedEntry)
+            if spell.get('heightened').get('x') is not None:
+                spellHeightenedListToXML(spellBody,  spell.get('heightened').get('x'))
+        createNumberTypeElement(spellBody, 'level', spell.get('level'))
+        createStringTypeElement(spellBody, 'requirements', spell.get('requirements'))
+        createStringTypeElement(spellBody, 'savingthrow', spell.get('savingThrow'))
+        createListToXMLString(spellBody, spell.get('traditions'), 'traditions', False)
+        rangeElement = ET.SubElement(spellBody, 'range', typeString)
+        if 'range' in spell:
+            rangeElement.text = stringFormatter(spell.get('range').get('entry'))
+        createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
+        components = []
+        if spell.get('components').get('M'):
+            components.append('material')
+        if spell.get('components').get('S'):
+            components.append('somatic')
+        if spell.get('components').get('V'):
+            components.append('verbal')
+        castingElement = ET.SubElement(spellBody, 'casting', typeString)
+        if 'entry' in spell.get('cast'):
+            castingElement.text = stringFormatter(spell.get('cast').get('entry'))
+        else:
+            castingElement.text = activityToString(spell.get('cast'))
+        castingElement.text += ' ' + listToString(components)
+        createStringTypeElement(spellBody, 'targets', spell.get('targets'))
+        spellListElement = ET.SubElement(spellBody, 'spelllists', typeString)
+        superScriptsList = []
+        if spell.get('heightened').get('heightened'):
+            superScriptsList.append('H')
+        if 'Uncommon' in spell.get('traits'):
+            superScriptsList.append('U')
+        if 'Rare' in spell.get('traits'):
+            superScriptsList.append('R')
+        createStringTypeElement(spellBody, 'superscripts', listToString(superScriptsList))
+        entryDictionaryHolder = {}
+        for entry in spell.get('entries'):
+            if type(entry) is dict:
+                if entry.get('type') == 'successDegree':
+                    entryDictionaryHolder = entry.get('entries')
+        createStringTypeElement(spellBody, 'critfailure', entryDictionaryHolder.get('Critical Failure'))
+        createStringTypeElement(spellBody, 'failure', entryDictionaryHolder.get('Failure'))
+        createStringTypeElement(spellBody, 'success', entryDictionaryHolder.get('Success'))
+        createStringTypeElement(spellBody, 'critsuccess', entryDictionaryHolder.get('Critical Success'))
+        id += 1
+
 def writeDefinition(root, naming):
     nameBody = ET.SubElement(root, 'name')
     nameBody.text = naming
@@ -390,12 +513,18 @@ def writeDBFile():
     if os.path.exists('backgrounds-sublist-data.json'):
         writeBackgrounds(rootXML)
 
+    if os.path.exists('spells-sublist-data.json'):
+        writeSpells(rootXML)
+
     libraryEntries = ET.SubElement(library, 'entries')
     if os.path.exists('feats-sublist-data.json'):
         writeLibraryEntries(libraryEntries, 'Feats', 'feat')
     
     if os.path.exists('backgrounds-sublist-data.json'):
         writeLibraryEntries(libraryEntries, 'Backgrounds', 'background')
+    
+    if os.path.exists('spells-sublist-data.json'):
+        writeLibraryEntries(libraryEntries, 'Spells', 'spell')
 
     tree = ET.ElementTree(rootXML)
     ET.indent(tree, '\t', level=0)
