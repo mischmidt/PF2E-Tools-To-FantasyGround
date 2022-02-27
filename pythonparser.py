@@ -15,6 +15,8 @@ numbersToProperNumber = {1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 
 def stringFormatter(s):
     if s is None:
         return ''
+    if s is int:
+        return str(s)
     entryRaw = s
     entrySafe = ''
     for split in re.split('{|}', entryRaw):
@@ -485,9 +487,15 @@ def writeMonsters(rootXML):
         createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Str'))
         createNumberTypeElement(beastBody, 'dexterity', abilityModsEntry.get('Dex'))
         createNumberTypeElement(beastBody, 'constitution', abilityModsEntry.get('Con'))
-        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Int'))
-        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Wis'))
-        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Cha'))
+        createNumberTypeElement(beastBody, 'intelligence', abilityModsEntry.get('Int'))
+        createNumberTypeElement(beastBody, 'wisdom', abilityModsEntry.get('Wis'))
+        createNumberTypeElement(beastBody, 'charisma', abilityModsEntry.get('Cha'))
+        saves = beast.get('savingThrows')
+        createNumberTypeElement(beastBody, 'fortitudesave', saves.get('Fort').get('default'))
+        createNumberTypeElement(beastBody, 'reflexsave', saves.get('Ref').get('default'))
+        createNumberTypeElement(beastBody, 'willsave', saves.get('Will').get('default'))
+        createStringTypeElement(beastBody, 'hardness', beast.get('hardness'))
+        createNumberTypeElement(beastBody, 'hp', beast.get('hp').get('hp'))
         # Currently leaving off right here
             
         id += 1
@@ -553,7 +561,7 @@ def writeDBFile():
     rootXML = ET.Element(
         'root', {'version': '4.1', 'dataversion': '20210708', 'release': '18|CoreRPG:4.1'})
     library = ET.SubElement(rootXML, 'library')
-    modulesSubElement = ET.SubElement(library, moduleName, {'static': 'true'})
+    modulesSubElement = ET.SubElement(library, 'pf2e_tools', {'static': 'true'})
     categoryName = ET.SubElement(modulesSubElement, 'categoryname', typeString)
     nameElement = ET.SubElement(modulesSubElement, 'name', typeString)
     nameElement.text = moduleName
