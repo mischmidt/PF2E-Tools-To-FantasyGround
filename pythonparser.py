@@ -572,6 +572,7 @@ def writeDBFile():
         writeSpells(rootXML)
 
     libraryEntries = ET.SubElement(modulesSubElement, 'entries')
+    writeLibraryEntries(libraryEntries, 'Story', 'story')
     if os.path.exists('feats-sublist-data.json'):
         writeLibraryEntries(libraryEntries, 'Feats', 'feat')
     
