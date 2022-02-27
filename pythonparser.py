@@ -7,6 +7,7 @@ import zipfile
 moduleName = 'pf2e_tools'
 typeString = {'type': 'string'}
 typeFormattedText = {'type': 'formattedtext'}
+staticModifier = {'static' : 'true'}
 typeNumber = {'type': 'number'}
 actionParser = {'1' : '[a]&#141;', '2' : '[a]&#143;', '3' : "[a]&#144;", 'R' : '[a]&#157;', 'F' : '[a]&#129;'}
 numbersToProperNumber = {1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 6 : '6th', 7 : '7th', 8 : '8th', 9 : '9th', 10 : '10th'}
@@ -461,6 +462,36 @@ def writeSpells(rootXML):
         createStringTypeElement(spellBody, 'critsuccess', entryDictionaryHolder.get('Critical Success'))
         id += 1
 
+def writeMonsters(rootXML):
+    file = open('spells-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = 1
+    beastElement = ET.SubElement(rootXML, 'npc')
+    category = ET.SubElement(beastElement, 'category', {'name': moduleName})
+    for beast in data:
+        beastBody = ET.SubElement(category, f'id-{id:05}')
+        acText = beast.get('ac').get('default')
+        for acEntries in beast.get('ac'):
+            if acEntries == 'default' or acEntries == 'abilities':
+                continue
+            acText += ' (' + acEntries + ' ' + str(beast.get('ac').get(acEntries)) + ')'
+        acAbilities = beast.get('ac').get('abilities')
+        if acAbilities is not None:
+            acText += '; ' + acAbilities + ';'
+        createStringTypeElement(beastBody, 'ac', acText)
+        createStringTypeElement(beastBody, 'category', '')
+        abilityModsEntry = beast.get('abilityMods')
+        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Str'))
+        createNumberTypeElement(beastBody, 'dexterity', abilityModsEntry.get('Dex'))
+        createNumberTypeElement(beastBody, 'constitution', abilityModsEntry.get('Con'))
+        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Int'))
+        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Wis'))
+        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Cha'))
+        # Currently leaving off right here
+            
+        id += 1
+
 def writeDefinition(root, naming):
     nameBody = ET.SubElement(root, 'name')
     nameBody.text = naming
@@ -471,7 +502,7 @@ def writeDefinition(root, naming):
     ruleSetBody.text = 'PFRPG2'
 
 def writeLibraryEntries(libraryEntry, displayName, name):
-    libraryFeat = ET.SubElement(libraryEntry, name)
+    libraryFeat = ET.SubElement(libraryEntry, name, staticModifier)
     libraryLink = ET.SubElement(libraryFeat, 'librarylink', {
                                 'type': 'windowreference'})
     libraryClass = ET.SubElement(libraryLink, 'class')
@@ -540,7 +571,7 @@ def writeDBFile():
     if os.path.exists('spells-sublist-data.json'):
         writeSpells(rootXML)
 
-    libraryEntries = ET.SubElement(library, 'entries')
+    libraryEntries = ET.SubElement(modulesSubElement, 'entries')
     if os.path.exists('feats-sublist-data.json'):
         writeLibraryEntries(libraryEntries, 'Feats', 'feat')
     
@@ -587,6 +618,11 @@ def main():
         print('thank you')
         exit()
     
+    global moduleName 
+    newName = input('Please enter a new name if you would like to change the current name (' + moduleName + ') to something different ')
+    if newName is not None:
+        moduleName = str(newName)
+
     writeDBFile()
     writeDefinitionFile()
 
