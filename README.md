@@ -17,3 +17,4 @@ PF2E OGL - https://pf2etools.com/licenses.html
 - Feats
 - Backgrounds
 - Spells
+- Beasts
