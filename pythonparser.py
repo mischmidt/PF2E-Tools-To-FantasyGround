@@ -70,7 +70,7 @@ def entriesToXML(parentXML, entries, skipTypes=[]):
             entryTypeToXML(parentXML, entry, entryType)
 
 def entryTypeToXML(parentXML, entry, entryType):
-    if entryType == 'successDegree':
+    if entryType == 'successDegree' or entryType == 'suceessDegree':
         successDegreeToXML(parentXML, entry.get('entries'))
     elif entryType == 'list':
         listToXML(parentXML, entry.get('items'))
@@ -214,9 +214,20 @@ def frequencyToString(frequency):
     output = ''
     if type(frequency) is dict:
         if frequency.get('freq'):
+            timeWord = ' per '
+            if frequency.get('freq') > 2:
+                timeWord = ' times '
+            if frequency.get('recurs'):
+                timeWord = ' every '
+            if frequency.get('interval'):
+                timeWord += str(frequency.get('interval')) + ' '
             output += numbersToWordNumber[frequency.get('freq')]
         if frequency.get('unit'):
-            output += ' per ' + frequency.get('unit')
+            output += timeWord + frequency.get('unit')
+        if frequency.get('special'):
+            if len(output) > 0:
+                output += '; '
+            output += frequency.get('special')
     return output
 
 def monsterAbilityToXML(parentXML, dictionary, number):
@@ -255,6 +266,8 @@ def monsterAbilityToXML(parentXML, dictionary, number):
             if ability == '\n':
                 continue
             descriptionString += newLineCharacter + ability
+        descriptionString = descriptionString.replace('<b>', '[newline]')
+        descriptionString = descriptionString.replace('</b>', '')
     createStringTypeElement(bodyElement, 'name', nameString)
     createStringTypeElement(bodyElement, 'desc', descriptionString)
 
@@ -473,8 +486,11 @@ def writeSpells(rootXML):
         spellBody = ET.SubElement(category, f'id-{id:05}')
         createStringTypeElement(spellBody, 'name', spell.get('name'))
         createStringTypeElement(spellBody, 'source', spell.get('source'))
-        createStringTypeElement(spellBody, 'spelltype', spell.get('type').upper())
-        createStringTypeElement(spellBody, 'spelltypelabel', spell.get('type')[0])
+        spellTypeString = 'SPELL'
+        if spell.get('focus'):
+            spellTypeString = 'FOCUS'
+        createStringTypeElement(spellBody, 'spelltype', spellTypeString)
+        createStringTypeElement(spellBody, 'spelltypelabel', spellTypeString[0])
         createListToXMLString(spellBody, spell.get('traits'), 'traits')
         areaElement = ET.SubElement(spellBody, 'area', typeString)
         if 'area' in spell:
