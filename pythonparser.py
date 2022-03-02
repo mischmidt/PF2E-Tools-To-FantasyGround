@@ -11,6 +11,7 @@ staticModifier = {'static' : 'true'}
 typeNumber = {'type': 'number'}
 actionParser = {'1' : '[a]&#141;', '2' : '[a]&#143;', '3' : "[a]&#144;", 'R' : '[a]&#157;', 'F' : '[a]&#129;'}
 numbersToProperNumber = {0 : 'Cantrips', 1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 6 : '6th', 7 : '7th', 8 : '8th', 9 : '9th', 10 : '10th'}
+numbersToWordNumber = {1 : 'Once', 2 : 'Twice', 3 : 'Three', 4 : 'Four', 5 : 'Five', 6 : 'Six', 7 : 'Seven', 8 : 'Eight', 9 : 'Nine'}
 
 def stringFormatter(s):
     if s is None:
@@ -203,9 +204,20 @@ def abilityToXML(parentXML, dictionary):
     if 'trigger' in dictionary:
         boldTextAndBody(parentXML, 'Trigger', dictionary.get('trigger'))
     if 'frequency' in dictionary:
-        boldTextAndBody(parentXML, 'Frequency', dictionary.get('frequency'))
+        boldTextAndBody(parentXML, 'Frequency', frequencyToString(dictionary.get('frequency')))
     if 'entries' in dictionary:
         entriesToXML(parentXML, dictionary.get('entries'))
+
+def frequencyToString(frequency):
+    if type(frequency) is str:
+        return frequency
+    output = ''
+    if type(frequency) is dict:
+        if frequency.get('freq'):
+            output += numbersToWordNumber[frequency.get('freq')]
+        if frequency.get('unit'):
+            output += ' per ' + frequency.get('unit')
+    return output
 
 def monsterAbilityToXML(parentXML, dictionary, number):
     bodyElement = ET.SubElement(parentXML, f'id-{number:05}')
@@ -232,7 +244,7 @@ def monsterAbilityToXML(parentXML, dictionary, number):
         descriptionString += newLineCharacter + '- Trigger: ' + dictionary.get('trigger')
         newLineCharacter = '[newline]'
     if 'frequency' in dictionary:
-        descriptionString += newLineCharacter + '- Frequency: ' + dictionary.get('frequency')
+        descriptionString += newLineCharacter + '- Frequency: ' + frequencyToString(dictionary.get('frequency'))
         newLineCharacter = '[newline]'
     if 'entries' in dictionary:
         holding = ET.Element('body')
@@ -340,10 +352,7 @@ def writeFeatDBFile(root):
         if 'entries' in feat:
             entriesToXML(effectsBenefits, feat.get('entries'))
 
-        frequency = ET.SubElement(featBody, 'frequency', typeString)
-        frequency.text = ''
-        if 'frequency' in feat:
-            frequency.text = stringFormatter(feat.get('frequency'))
+        createStringTypeElement(featBody, 'frequency', frequencyToString(feat.get('frequency')))
 
         level = ET.SubElement(featBody, 'level', typeNumber)
         level.text = (str)(1)
