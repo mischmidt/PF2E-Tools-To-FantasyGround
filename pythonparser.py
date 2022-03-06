@@ -474,6 +474,73 @@ def writeBackgrounds(rootXML):
         
         id += 1
 
+def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
+    spellBody = ET.SubElement(parentXML, f'id-{id:05}')
+    createStringTypeElement(spellBody, 'name', spell.get('name') + spellNameAppend)
+    createStringTypeElement(spellBody, 'source', spell.get('source'))
+    spellTypeString = 'SPELL'
+    if spell.get('focus'):
+        spellTypeString = 'FOCUS'
+    createStringTypeElement(spellBody, 'spelltype', spellTypeString)
+    createStringTypeElement(spellBody, 'spelltypelabel', spellTypeString[0])
+    createListToXMLString(spellBody, spell.get('traits'), 'traits')
+    areaElement = ET.SubElement(spellBody, 'area', typeString)
+    if 'area' in spell:
+        areaElement.text = stringFormatter(spell.get('area').get('entry'))
+    createStringTypeElement(spellBody, 'cost', spell.get('cost'))
+    createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
+    effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
+    entriesToXML(effectsElement, spell.get('entries'), ['successDegree'])
+    if spell.get('heightened').get('heightened'):
+        if spell.get('heightened').get('plus_x') is not None:
+            properNumber = '(+' + str(spell.get('heightened').get('plus_x').get('level')) + ')'
+            heightenedEntry = stringFormatter(spell.get('heightened').get('plus_x').get('entry'))
+            heightenedElement = ET.SubElement(spellBody, 'heightened', typeFormattedText)
+            boldTextAndBody(heightenedElement, properNumber, heightenedEntry)
+        if spell.get('heightened').get('x') is not None:
+            spellHeightenedListToXML(spellBody,  spell.get('heightened').get('x'))
+    createNumberTypeElement(spellBody, 'level', spell.get('level'))
+    createStringTypeElement(spellBody, 'requirements', spell.get('requirements'))
+    createStringTypeElement(spellBody, 'savingthrow', spell.get('savingThrow'))
+    createListToXMLString(spellBody, spell.get('traditions'), 'traditions', False)
+    rangeElement = ET.SubElement(spellBody, 'range', typeString)
+    if 'range' in spell:
+        rangeElement.text = stringFormatter(spell.get('range').get('entry'))
+    createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
+    components = []
+    if spell.get('components').get('M'):
+        components.append('material')
+    if spell.get('components').get('S'):
+        components.append('somatic')
+    if spell.get('components').get('V'):
+        components.append('verbal')
+    castingElement = ET.SubElement(spellBody, 'casting', typeString)
+    if 'entry' in spell.get('cast'):
+        castingElement.text = stringFormatter(spell.get('cast').get('entry'))
+    else:
+        castingElement.text = activityToString(spell.get('cast'))
+    castingElement.text += ' ' + listToString(components)
+    createStringTypeElement(spellBody, 'targets', spell.get('targets'))
+    spellListElement = ET.SubElement(spellBody, 'spelllists', typeString)
+    superScriptsList = []
+    if spell.get('heightened').get('heightened'):
+        superScriptsList.append('H')
+    if 'Uncommon' in spell.get('traits'):
+        superScriptsList.append('U')
+    if 'Rare' in spell.get('traits'):
+        superScriptsList.append('R')
+    createStringTypeElement(spellBody, 'superscripts', listToString(superScriptsList))
+    entryDictionaryHolder = {}
+    for entry in spell.get('entries'):
+        if type(entry) is dict:
+            if entry.get('type') == 'successDegree':
+                entryDictionaryHolder = entry.get('entries')
+    createStringTypeElement(spellBody, 'critfailure', entryDictionaryHolder.get('Critical Failure'))
+    createStringTypeElement(spellBody, 'failure', entryDictionaryHolder.get('Failure'))
+    createStringTypeElement(spellBody, 'success', entryDictionaryHolder.get('Success'))
+    createStringTypeElement(spellBody, 'critsuccess', entryDictionaryHolder.get('Critical Success'))
+    actionsElement = ET.SubElement(spellBody, 'actions')
+    return spellBody
 
 def writeSpells(rootXML):
     file = open('spells-sublist-data.json')
@@ -483,70 +550,7 @@ def writeSpells(rootXML):
     spellElement = ET.SubElement(rootXML, 'spell')
     category = ET.SubElement(spellElement, 'category', {'name': moduleName})
     for spell in data:
-        spellBody = ET.SubElement(category, f'id-{id:05}')
-        createStringTypeElement(spellBody, 'name', spell.get('name'))
-        createStringTypeElement(spellBody, 'source', spell.get('source'))
-        spellTypeString = 'SPELL'
-        if spell.get('focus'):
-            spellTypeString = 'FOCUS'
-        createStringTypeElement(spellBody, 'spelltype', spellTypeString)
-        createStringTypeElement(spellBody, 'spelltypelabel', spellTypeString[0])
-        createListToXMLString(spellBody, spell.get('traits'), 'traits')
-        areaElement = ET.SubElement(spellBody, 'area', typeString)
-        if 'area' in spell:
-            areaElement.text = stringFormatter(spell.get('area').get('entry'))
-        createStringTypeElement(spellBody, 'cost', spell.get('cost'))
-        createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
-        effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
-        entriesToXML(effectsElement, spell.get('entries'), ['successDegree'])
-        if spell.get('heightened').get('heightened'):
-            if spell.get('heightened').get('plus_x') is not None:
-                properNumber = '(+' + str(spell.get('heightened').get('plus_x').get('level')) + ')'
-                heightenedEntry = stringFormatter(spell.get('heightened').get('plus_x').get('entry'))
-                heightenedElement = ET.SubElement(spellBody, 'heightened', typeFormattedText)
-                boldTextAndBody(heightenedElement, properNumber, heightenedEntry)
-            if spell.get('heightened').get('x') is not None:
-                spellHeightenedListToXML(spellBody,  spell.get('heightened').get('x'))
-        createNumberTypeElement(spellBody, 'level', spell.get('level'))
-        createStringTypeElement(spellBody, 'requirements', spell.get('requirements'))
-        createStringTypeElement(spellBody, 'savingthrow', spell.get('savingThrow'))
-        createListToXMLString(spellBody, spell.get('traditions'), 'traditions', False)
-        rangeElement = ET.SubElement(spellBody, 'range', typeString)
-        if 'range' in spell:
-            rangeElement.text = stringFormatter(spell.get('range').get('entry'))
-        createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
-        components = []
-        if spell.get('components').get('M'):
-            components.append('material')
-        if spell.get('components').get('S'):
-            components.append('somatic')
-        if spell.get('components').get('V'):
-            components.append('verbal')
-        castingElement = ET.SubElement(spellBody, 'casting', typeString)
-        if 'entry' in spell.get('cast'):
-            castingElement.text = stringFormatter(spell.get('cast').get('entry'))
-        else:
-            castingElement.text = activityToString(spell.get('cast'))
-        castingElement.text += ' ' + listToString(components)
-        createStringTypeElement(spellBody, 'targets', spell.get('targets'))
-        spellListElement = ET.SubElement(spellBody, 'spelllists', typeString)
-        superScriptsList = []
-        if spell.get('heightened').get('heightened'):
-            superScriptsList.append('H')
-        if 'Uncommon' in spell.get('traits'):
-            superScriptsList.append('U')
-        if 'Rare' in spell.get('traits'):
-            superScriptsList.append('R')
-        createStringTypeElement(spellBody, 'superscripts', listToString(superScriptsList))
-        entryDictionaryHolder = {}
-        for entry in spell.get('entries'):
-            if type(entry) is dict:
-                if entry.get('type') == 'successDegree':
-                    entryDictionaryHolder = entry.get('entries')
-        createStringTypeElement(spellBody, 'critfailure', entryDictionaryHolder.get('Critical Failure'))
-        createStringTypeElement(spellBody, 'failure', entryDictionaryHolder.get('Failure'))
-        createStringTypeElement(spellBody, 'success', entryDictionaryHolder.get('Success'))
-        createStringTypeElement(spellBody, 'critsuccess', entryDictionaryHolder.get('Critical Success'))
+        writeSingleSpell(category, spell, id)
         id += 1
 
 def perceptionStringFromMonster(beast):
@@ -693,7 +697,89 @@ def spellFromSpellCasting(casting):
     genericSpellString += spellEntriesToString(casting.get('entry'))
     return genericSpellString
 
-def writeMonsters(rootXML):
+def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
+    spellListData = {}
+    file = open('spells-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    for spell in data:
+        spellListData[spell.get('name').lower()] = spell
+    spellListID = 1
+    for spellList in spellLists:
+        spellEntries = spellList.get('entry')
+        spellIdElement = ET.SubElement(monsterSpellListXML, f'id-{spellListID:05}')
+        createNumberTypeElement(spellIdElement, 'cl', characterLevel)
+        createNumberTypeElement(spellIdElement, 'slotstatmod', 0)
+        spellAttackBonusNumber = 0
+        DCTotalNumber = 10
+        if spellList.get('fp'):
+            createStringTypeElement(spellIdElement, 'castertype', 'points')
+            createNumberTypeElement(spellIdElement, 'powerclass', 1)
+        if spellList.get('type') == 'Spontaneous':
+            createStringTypeElement(spellIdElement, 'castertype', 'spontaneous')
+        createStringTypeElement(spellIdElement, 'label', spellList.get('name'))
+        traditionString = ''
+        if spellList.get('tradition'):
+            traditionString = spellList.get('tradition').lower()
+        createStringTypeElement(spellIdElement, 'tradition', traditionString)
+        if spellList.get('DC'):
+            DCTotalNumber = spellList.get('DC')  
+        if spellList.get('attack'):
+            spellAttackBonusNumber = spellList.get('attack')
+        createNumberTypeElement(spellIdElement, 'spellatkbonus', spellAttackBonusNumber)
+        DCElementBody = ET.SubElement(spellIdElement, 'dc')
+        createNumberTypeElement(DCElementBody, 'abilitymod', 0)
+        createNumberTypeElement(DCElementBody, 'item', 0)
+        createNumberTypeElement(DCElementBody, 'misc', DCTotalNumber - 10)
+        createNumberTypeElement(DCElementBody, 'prof', 0)
+        createNumberTypeElement(DCElementBody, 'roll', 0)
+        createNumberTypeElement(DCElementBody, 'rolltempmod', 0)
+        createNumberTypeElement(DCElementBody, 'tempmod', 0)
+        createNumberTypeElement(DCElementBody, 'total', DCTotalNumber)
+        levelsElementBody = ET.SubElement(spellIdElement, 'levels')
+        for level in range(0, 11):
+            countAllSpells = False
+            levelElementBody = ET.SubElement(levelsElementBody, f'level{level}')
+            createNumberTypeElement(levelElementBody, 'level', level)
+            createNumberTypeElement(levelElementBody, 'maxprepared', 0)
+            createNumberTypeElement(levelElementBody, 'totalcast', 0)
+            createNumberTypeElement(levelElementBody, 'totalprepared', 0)
+            spellListEntriesBody = ET.SubElement(levelElementBody, 'spells')
+            availableSpells = 0
+            spellEntry = spellEntries.get(str(level))
+            if spellEntry:
+                if level == 0 and spellEntry.get('level'):
+                    availableSpells = spellEntry.get('level')
+                elif spellEntry.get('slots'):
+                    availableSpells = spellEntry.get('slots')
+                elif spellList.get('type') != 'Prepared':
+                    countAllSpells = True
+                    availableSpells = 1
+                spellFromDataList = spellEntry.get('spells')
+                for i in  range(0, len(spellFromDataList)):
+                    notes = ''
+                    if spellListData.get(spellFromDataList[i].get('name').lower()) is None:
+                        continue
+                    spellBase = spellListData.get(spellFromDataList[i].get('name').lower())
+                    if spellFromDataList[i].get('notes'):
+                        notes = ' ' + listToString(spellFromDataList[i].get('notes'))
+                    if spellFromDataList[i].get('amount'):
+                        notes += ' (' + str(spellFromDataList[i].get('amount')) + ' time(s))'
+                    spellBody = writeSingleSpell(spellListEntriesBody, spellBase, i + 1, notes)
+                    preparedAmount = 1
+                    if spellFromDataList[i].get('amount'):
+                        preparedAmount = spellFromDataList[i].get('amount')
+                    if spellList.get('type') != 'Focus':
+                        createNumberTypeElement(spellBody, 'prepared', preparedAmount)
+                    if countAllSpells:
+                        availableSpells += preparedAmount
+                    createNumberTypeElement(spellBody, 'cast', 0)
+                    createNumberTypeElement(spellBody, 'spcost', 1)
+            createNumberTypeElement(spellIdElement, f'availablelevel{level}', availableSpells)
+        spellListID += 1  
+        
+
+def writeMonsters(rootXML, createMonsterSpellList = False):
     file = open('bestiary-sublist-data.json')
     data = json.load(file)
     file.close()
@@ -807,6 +893,7 @@ def writeMonsters(rootXML):
                 monsterAbilityToXML(reactiveAbilitiesElement, beast.get('abilitiesMid')[i], i + 1)
         innateSpellString = ''
         focusSpellString = ''
+        focusPointBase = 0
         genericSpellString = ''
         if beast.get('spellcasting') is not None:
             for spellCasting in beast.get('spellcasting'):
@@ -814,6 +901,8 @@ def writeMonsters(rootXML):
                     innateSpellString += spellFromSpellCasting(spellCasting)
                 elif spellCasting.get('type') == 'Focus':
                     focusSpellString += spellFromSpellCasting(spellCasting)
+                    if spellCasting.get('fp'):
+                        focusPointBase = spellCasting.get('fp')
                 else:
                     genericSpellString += spellFromSpellCasting(spellCasting)
         createStringTypeElement(beastBody, 'classpowers', focusSpellString)
@@ -830,7 +919,16 @@ def writeMonsters(rootXML):
                 if ritual.get('DC') is not None:
                     ritualString += 'DC ' + str(ritual.get('DC'))
                 ritualString += spellListToString(ritual.get('rituals'))
-
+        focusPointElementBase = ET.SubElement(beastBody, 'sp')
+        createNumberTypeElement(focusPointElementBase, 'base', focusPointBase)
+        createNumberTypeElement(focusPointElementBase, 'item', 0)
+        createNumberTypeElement(focusPointElementBase, 'misc', 0)
+        createNumberTypeElement(focusPointElementBase, 'pointsused', 0)
+        createNumberTypeElement(focusPointElementBase, 'tempmod', 0)
+        createNumberTypeElement(focusPointElementBase, 'total', focusPointBase)
+        spellsetElement = ET.SubElement(beastBody, 'spellset')
+        if beast.get('spellcasting') and createMonsterSpellList:
+            parseMonsterSpells(spellsetElement, beast.get('spellcasting'), beast.get('level'))
         id += 1
 
 def writeDefinition(root, naming):
@@ -903,17 +1001,34 @@ def writeDBFile():
     openGameLicenseStory(storyEntries)
     usageRequirementsStory(storyEntries)
 
+    createMonsterSpellList = True
+    if os.path.exists('spells-sublist-data.json') == False:
+        while os.path.exists('spells-sublist-data.json') == False:
+            createSpellsInput = input('In order to parse the spells, you need the JSON File.  Would you like to skip the spells list? Y/n: ')
+            if createSpellsInput == 'Y':
+                createMonsterSpellList = False
+            input('Please drop in the spells-sublist-data.json file and then press enter')
+    else:
+        createSpellsInput = input('Spell json detected.  Would you like to parse to the monsters spells list? Y/n: ')
+        if createSpellsInput != 'Y':
+            createMonsterSpellList = False
+
     if os.path.exists('feats-sublist-data.json'):
         writeFeatDBFile(rootXML)
     
     if os.path.exists('backgrounds-sublist-data.json'):
         writeBackgrounds(rootXML)
 
-    if os.path.exists('spells-sublist-data.json'):
+    createSpells = True
+    if createMonsterSpellList:
+        if input('Would you also like to parse spells into their own category? Y/n') != 'Y':
+            createSpells = False
+
+    if os.path.exists('spells-sublist-data.json') and createSpells:
         writeSpells(rootXML)
 
     if os.path.exists('bestiary-sublist-data.json'):
-        writeMonsters(rootXML)
+        writeMonsters(rootXML, createMonsterSpellList)
 
     libraryEntries = ET.SubElement(modulesSubElement, 'entries')
     writeLibraryEntries(libraryEntries, 'Story', 'story')
