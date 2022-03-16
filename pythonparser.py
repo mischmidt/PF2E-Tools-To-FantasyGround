@@ -12,6 +12,7 @@ typeNumber = {'type': 'number'}
 actionParser = {'1' : '[a]&#141;', '2' : '[a]&#143;', '3' : "[a]&#144;", 'R' : '[a]&#157;', 'F' : '[a]&#129;'}
 numbersToProperNumber = {0 : 'Cantrips', 1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 6 : '6th', 7 : '7th', 8 : '8th', 9 : '9th', 10 : '10th'}
 numbersToWordNumber = {1 : 'Once', 2 : 'Twice', 3 : 'Three', 4 : 'Four', 5 : 'Five', 6 : 'Six', 7 : 'Seven', 8 : 'Eight', 9 : 'Nine'}
+newline = '[newline]'
 
 def stringFormatter(s):
     if s is None:
@@ -27,6 +28,8 @@ def stringFormatter(s):
             parsing = actionParser[str(stringEnding)]
         else:
             parsing = re.sub('@([a-zA-Z]+)\s', '', parsing)
+            if parsing.find('||') != -1:
+                parsing = re.split('\|\|', parsing)[1]
             parsing = re.sub('\|(.+)', '', parsing)
         entrySafe += parsing.replace('\n', ' ')
     return entrySafe
@@ -54,7 +57,6 @@ def activityToString(activity, isSymbol=True):
         else:
             output += 'action'
     return output
-
 
 def entriesToXML(parentXML, entries, skipTypes=[]):
     if entries is None:
@@ -92,6 +94,8 @@ def entryTypeToXML(parentXML, entry, entryType):
         pf2SampleBoxToXML(parentXML, entry)
     elif entryType == 'statblock':
         return
+    elif entryType == 'attack':
+        createStringTypeElement(parentXML, 'p', attackStringFromAttacks([entry], entry.get('range')))
     else:
         print('Unhandled Entry type: ' + entry.get('type'))
 
@@ -230,8 +234,30 @@ def frequencyToString(frequency):
             output += frequency.get('special')
     return output
 
-def monsterAbilityToXML(parentXML, dictionary, number):
-    bodyElement = ET.SubElement(parentXML, f'id-{number:05}')
+def xmlToFormattedString(xmlParent):
+    output = ''
+    ET.indent(xmlParent, level=0, space='')
+    arrayHolder = ET.tostringlist(xmlParent, 'unicode', 'text')
+    newLine = ''
+    for ability in arrayHolder:
+        if ability == '\n':
+            continue
+        output += newLine + ability
+        newLine = newline
+    output = output.replace('<b>', newline)
+    output = output.replace('</b>', '')
+    return output
+
+def entriesToString(entries):
+    output = ''
+    if type(entries) is None:
+        return output
+    holding = ET.Element('body')
+    entriesToXML(holding, entries)
+    output = xmlToFormattedString(holding)
+    return output
+
+def abilityToNameAndDescription(parentXML, dictionary, oneLine = False, oneLineName = ''):
     nameString = ''
     descriptionString = ''
     if 'activity' in dictionary:
@@ -247,29 +273,34 @@ def monsterAbilityToXML(parentXML, dictionary, number):
     newLineCharacter = ''
     if 'prerequisites' in dictionary:
         descriptionString += '- Prerequisites: ' + dictionary.get('prerequisites')
-        newLineCharacter = '[newline]'
+        newLineCharacter = newline
     if 'requirements' in dictionary:
         descriptionString += newLineCharacter + '- Requirements: ' + dictionary.get('requirements')
-        newLineCharacter = '[newline]'
+        newLineCharacter = newline
     if 'trigger' in dictionary:
         descriptionString += newLineCharacter + '- Trigger: ' + dictionary.get('trigger')
-        newLineCharacter = '[newline]'
+        newLineCharacter = newline
     if 'frequency' in dictionary:
         descriptionString += newLineCharacter + '- Frequency: ' + frequencyToString(dictionary.get('frequency'))
-        newLineCharacter = '[newline]'
+        newLineCharacter = newline
     if 'entries' in dictionary:
-        holding = ET.Element('body')
-        entriesToXML(holding, dictionary.get('entries'))
-        ET.indent(holding, level=0, space='')
-        arrayHolder = ET.tostringlist(holding, 'unicode', 'text')
-        for ability in arrayHolder:
-            if ability == '\n':
-                continue
-            descriptionString += newLineCharacter + ability
-        descriptionString = descriptionString.replace('<b>', '[newline]')
-        descriptionString = descriptionString.replace('</b>', '')
-    createStringTypeElement(bodyElement, 'name', nameString)
-    createStringTypeElement(bodyElement, 'desc', descriptionString)
+        descriptionString += newLineCharacter + entriesToString(dictionary.get('entries'))
+    if oneLine:
+        createStringTypeElement(parentXML, oneLineName, nameString + newline + descriptionString)
+    else:
+        createStringTypeElement(parentXML, 'name', nameString)
+        createStringTypeElement(parentXML, 'desc', descriptionString)
+
+def abilityToString(dictionary):
+    output = ''
+    holding = ET.Element('p')
+    abilityToNameAndDescription(holding, dictionary, True, 'line')
+    output = xmlToFormattedString(holding)
+    return output
+
+def monsterAbilityToXML(parentXML, dictionary, number):
+    bodyElement = ET.SubElement(parentXML, f'id-{number:05}')
+    abilityToNameAndDescription(bodyElement, dictionary)
 
 def optionListToString(optionsList):
     output = ''
@@ -280,7 +311,7 @@ def optionListToString(optionsList):
             output += ', or '
     return output
 
-def listToString(list):
+def listToString(list, inbetween = ', '):
     output = ''
     if list is None:
         return ''
@@ -288,7 +319,7 @@ def listToString(list):
     for i in range(0, endLength):
         output += stringFormatter(list[i])
         if i < endLength - 1:
-            output += ',  '
+            output += inbetween
     return output
 
 def createNumberTypeElement(parentXML, elementName, elementBody):
@@ -622,18 +653,23 @@ def attackStringFromAttacks(attackList = [], attackType = 'Melee'):
     if attackList is None:
         return ''
     for attack in attackList:
+        if type(attack) is None:
+            continue
         if attack.get('range') != attackType:
             continue
         if multipleMeleeLock:
-            attackString += '[newline]'
+            attackString += newline
         attackString += actionParser['1'] + ' '
         attackString += stringFormatter(attack.get('name'))
         attackString += ' +' + str(attack.get('attack'))
         attackString += ' (' + listToString(attack.get('traits')) + '), Damage '
         attackString += stringFormatter(attack.get('damage')) + ' '
-        if len(attack.get('effects')) > 0:
-            attackString += 'plus ' + listToString(attack.get('effects'))
+        if attack.get('effects'):
+            if len(attack.get('effects')) > 0:
+                attackString += 'plus ' + listToString(attack.get('effects'))
         multipleMeleeLock = True
+        if attack.get('noMAP'):
+            attackString += ', no multiple attack penalty'
     return attackString
 
 def spellEntriesToString(entries):
@@ -643,7 +679,7 @@ def spellEntriesToString(entries):
         return ''
     for spell in entries:
         if spellLock:
-            output += '[newline]'
+            output += newline
         if spell == 'constant':
             output += 'Constant: ' + spellEntriesToString(entries.get(spell))
         else:
@@ -696,6 +732,30 @@ def spellFromSpellCasting(casting):
         genericSpellString += '(' + str(casting.get('fp')) + ' Focus Point) '
     genericSpellString += spellEntriesToString(casting.get('entry'))
     return genericSpellString
+
+def acDictToString(acDict):
+    acText = ''
+    if acDict is not None:
+        acText += str(acDict.get('default'))
+        for acEntries in acDict:
+            if acEntries == 'default' or acEntries == 'abilities':
+                continue
+            acText += ' (' + str(acDict.get(acEntries)) + ' ' + acEntries + ' ' + ')'
+        acAbilities = acDict.get('abilities')
+        if acAbilities is not None:
+            acText += '; ' + acAbilities + ';'
+    return acText
+
+def immunitiesToString(immunityDict):
+    immunitiesString = ''
+    if immunityDict is not None:
+        immunities = []
+        if immunityDict.get('damage') is not None:
+            immunities.extend(immunityDict.get('damage'))
+        if immunityDict.get('condition') is not None:
+            immunities.extend(immunityDict.get('condition'))
+        immunitiesString = listToString(immunities)
+    return immunitiesString
 
 def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
     spellListData = {}
@@ -767,7 +827,7 @@ def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
                         notes += ' (' + str(spellFromDataList[i].get('amount')) + ' time(s))'
                     spellBody = writeSingleSpell(spellListEntriesBody, spellBase, i + 1, notes)
                     preparedAmount = 1
-                    if spellFromDataList[i].get('amount'):
+                    if type(spellFromDataList[i].get('amount')) is int:
                         preparedAmount = spellFromDataList[i].get('amount')
                     if spellList.get('type') != 'Focus':
                         createNumberTypeElement(spellBody, 'prepared', preparedAmount)
@@ -777,28 +837,16 @@ def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
                     createNumberTypeElement(spellBody, 'spcost', 1)
             createNumberTypeElement(spellIdElement, f'availablelevel{level}', availableSpells)
         spellListID += 1  
-        
 
-def writeMonsters(rootXML, createMonsterSpellList = False):
+def writeMonsters(beastElement, createMonsterSpellList = False):
     file = open('bestiary-sublist-data.json')
     data = json.load(file)
     file.close()
     id = 1
-    beastElement = ET.SubElement(rootXML, 'npc')
     category = ET.SubElement(beastElement, 'category', {'name': moduleName})
     for beast in data:
         beastBody = ET.SubElement(category, f'id-{id:05}')
-        acText = ''
-        if beast.get('ac') is not None:
-            acText += str(beast.get('ac').get('default'))
-            for acEntries in beast.get('ac'):
-                if acEntries == 'default' or acEntries == 'abilities':
-                    continue
-                acText += ' (' + str(beast.get('ac').get(acEntries)) + ' ' + acEntries + ' ' + ')'
-            acAbilities = beast.get('ac').get('abilities')
-            if acAbilities is not None:
-                acText += '; ' + acAbilities + ';'
-        createStringTypeElement(beastBody, 'ac', acText)
+        createStringTypeElement(beastBody, 'ac', acDictToString(beast.get('ac')))
         createStringTypeElement(beastBody, 'category', moduleName + ' ' + beast.get('source'))
         abilityModsEntry = beast.get('abilityMods')
         if abilityModsEntry is not None:
@@ -814,9 +862,9 @@ def writeMonsters(rootXML, createMonsterSpellList = False):
             createNumberTypeElement(beastBody, 'reflexsave', saves.get('Ref').get('default'))
             createNumberTypeElement(beastBody, 'willsave', saves.get('Will').get('default'))
             createStringTypeElement(beastBody, 'saveabilities', saves.get('abilities'))
-            if beast.get('hardness') is not None:
-                createStringTypeElement(beastBody, 'hardness', str(beast.get('hardness')))
-            createNumberTypeElement(beastBody, 'hp', beast.get('hp')[0].get('hp'))
+        if beast.get('hardness') is not None:
+            createStringTypeElement(beastBody, 'hardness', str(beast.get('hardness')))
+        createNumberTypeElement(beastBody, 'hp', beast.get('hp')[0].get('hp'))
         hpAbilities = ''
         if beast.get('hp') is not None:
             for hpEntries in beast.get('hp'):
@@ -827,17 +875,8 @@ def writeMonsters(rootXML, createMonsterSpellList = False):
                     hpAbilities += listToString(hpEntries.get('abilities')) + ' '
             if hpAbilities.replace(' ', '').isdigit():
                 hpAbilities = ''
-        createStringTypeElement(beastBody, 'hpabilities', hpAbilities)
-        immunitiesString = ''
-        immunity = beast.get('immunities')
-        if immunity is not None:
-            immunities = []
-            if immunity.get('damage') is not None:
-                immunities.extend(immunity.get('damage'))
-            if immunity.get('condition') is not None:
-                immunities.extend(immunity.get('condition'))
-            immunitiesString = listToString(immunities)
-        createStringTypeElement(beastBody, 'immunities', immunitiesString)
+        createStringTypeElement(beastBody, 'hpabilities', hpAbilities)        
+        createStringTypeElement(beastBody, 'immunities', immunitiesToString(beast.get('immunities')))
         if beast.get('perception') is not None:
             createNumberTypeElement(beastBody, 'init', beast.get('perception').get('default'))
         else:
@@ -861,8 +900,8 @@ def writeMonsters(rootXML, createMonsterSpellList = False):
         createStringTypeElement(beastBody, 'spellmode', 'standard')
         createStringTypeElement(beastBody, 'subcategory', '')
         textElement = ET.SubElement(beastBody, 'text', typeFormattedText)
-        emptyBodyTextElement = ET.SubElement(textElement, 'p')
-        tokenElement = ET.SubElement(beastBody, 'token', {'type' : 'token'})
+        ET.SubElement(textElement, 'p')
+        ET.SubElement(beastBody, 'token', {'type' : 'token'})
         traits = []
         if beast.get('rarity') is not None:
             traits.append(beast.get('rarity'))
@@ -913,7 +952,7 @@ def writeMonsters(rootXML, createMonsterSpellList = False):
         if beast.get('rituals') is not None:
             for ritual in beast.get('rituals'):
                 if ritualLock:
-                    ritualString += '[newline]'
+                    ritualString += newline
                 if ritual.get('tradition') is not None:
                     ritualString += ritual.get('tradition') + ' Rituals '
                 if ritual.get('DC') is not None:
@@ -929,6 +968,151 @@ def writeMonsters(rootXML, createMonsterSpellList = False):
         spellsetElement = ET.SubElement(beastBody, 'spellset')
         if beast.get('spellcasting') and createMonsterSpellList:
             parseMonsterSpells(spellsetElement, beast.get('spellcasting'), beast.get('level'))
+        id += 1
+
+def writeAfflictions(rootXML):
+    file = open('afflictions-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = 1
+    afflictionElementHead = ET.SubElement(rootXML, 'affliction')
+    category = ET.SubElement(afflictionElementHead, 'category', {'name': moduleName})
+    for afflictionData in data:
+        afflicitonBody = ET.SubElement(category, f'id-{id:05}')
+        createStringTypeElement(afflicitonBody, 'name', afflictionData.get('name'))
+        afflictionLevel = str(afflictionData.get('level') if afflictionData.get('level') else '')
+        createStringTypeElement(afflicitonBody, 'traits', listToString(afflictionData.get('traits')))
+        afflictionEntries = afflictionData.get('entries')
+        afflictionElementsFromData = {}
+        if afflictionEntries:
+            if type(afflictionEntries) == str:
+                createStringTypeElement(afflicitonBody, 'text', stringFormatter(afflictionEntries[0]))
+                afflictionElementsFromData = afflictionEntries[1]
+            else:
+                afflictionElementsFromData = afflictionEntries[0]
+        createStringTypeElement(afflicitonBody, 'onset', afflictionElementsFromData.get('onset'))
+        if afflictionElementsFromData.get('level'):
+            afflictionLevel = stringFormatter(afflictionElementsFromData.get('level'))
+        createStringTypeElement(afflicitonBody, 'level', afflictionLevel)
+        savingThrowString = ''
+        if afflictionElementsFromData.get('DC'):
+            savingThrowString = str(afflictionElementsFromData.get('DC')) + ' '
+        savingThrowString += stringFormatter(afflictionElementsFromData.get('savingThrow'))
+        if afflictionElementsFromData.get('stages'):
+            for stage in afflictionElementsFromData.get('stages'):
+                stageNumber = stage.get('stage')
+                createStringTypeElement(afflicitonBody, f'stage{stageNumber}')
+                stageString = stage.get('entry')
+                if stage.get('duration'):
+                    stageString += ' (' + stage.get('duration') + ')'
+        id += 1
+
+def writeHazard(npcXML, hazardBody):
+    file = open('hazards-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = 1
+    category = ET.SubElement(npcXML, 'category', {'name': moduleName})
+    for hazardData in data:
+        hazardBody = ET.SubElement(category, f'id-{id:05}')
+        ET.SubElement(hazardBody, 'actions_interactionabilities')
+        ET.SubElement(hazardBody, 'actions_offensiveproactive')
+        ET.SubElement(hazardBody, 'actions_reactiveabilities')
+        createNumberTypeElement(hazardBody, 'charisma', 0)
+        createNumberTypeElement(hazardBody, 'constitution', 0)
+        createNumberTypeElement(hazardBody, 'dexterity', 0)
+        createNumberTypeElement(hazardBody, 'intelligence', 0)
+        createNumberTypeElement(hazardBody, 'strength', 0)
+        createNumberTypeElement(hazardBody, 'wisdom', 0)
+        createStringTypeElement(hazardBody, 'nonid_name', '')
+        createStringTypeElement(hazardBody, 'npctype', 'Hazard')
+        textElementUnused = ET.SubElement(hazardBody, 'text', typeFormattedText)
+        ET.SubElement(textElementUnused, 'p')
+        miscElementUnused = ET.SubElement(hazardBody, 'miscellaneous', typeFormattedText)
+        ET.SubElement(miscElementUnused, 'p')
+        createStringTypeElement(hazardBody, 'description', listToString(hazardData.get('description')))
+        ET.SubElement(hazardBody, 'token', {'type' : 'token'})
+        createStringTypeElement(hazardBody, 'name', hazardData.get('name'))
+        createNumberTypeElement(hazardBody, 'level', hazardData.get('level'))
+        createStringTypeElement(hazardBody, 'traits', listToString(hazardData.get('traits')))
+        defensesDictionary = hazardData.get('defenses')
+        if defensesDictionary:
+            btElement = defensesDictionary.get('bt')
+            hpElement = defensesDictionary.get('hp')
+            hardnessElement = defensesDictionary.get('hardness')
+            noteElement = defensesDictionary.get('notes')
+            if hpElement:
+                valuesList = hpElement.keys()
+            createStringTypeElement(hazardBody, 'ac', acDictToString(defensesDictionary.get('ac')))
+            if defensesDictionary.get('bt'):
+                createNumberTypeElement(hazardBody, 'bt', defensesDictionary.get('bt').get('default'))
+            if defensesDictionary.get('hp'):
+                createNumberTypeElement(hazardBody, 'hp', defensesDictionary.get('hp').get('default'))
+            hardnessString = ''
+            for value in valuesList:
+                hardnessNameString = value
+                if value == 'default':
+                    hardnessNameString = ''
+                if hardnessElement:
+                    hardnessString += hardnessNameString + ' Hardness ' + str(hardnessElement.get(value)) + ', '
+                if hpElement:
+                    hardnessString += hardnessNameString + ' HP ' + str(hpElement.get(value))
+                if btElement:
+                    hardnessString += ' (BT' + str(btElement.get(value)) + ') '
+                if noteElement:
+                    if type(noteElement) is str:
+                        hardnessString += noteElement
+                    else:
+                        hardnessString += str(noteElement.get(value))
+                hardnessString += '; '
+            savingThrowDict = defensesDictionary.get('savingThrows')
+            if savingThrowDict:
+                createNumberTypeElement(hazardBody, 'fortitudesave', savingThrowDict.get('fort'))
+                createNumberTypeElement(hazardBody, 'reflexsave', savingThrowDict.get('ref'))
+                createNumberTypeElement(hazardBody, 'willsave', savingThrowDict.get('will'))
+            createStringTypeElement(hazardBody, 'immunities', listToString(defensesDictionary.get('immunities')))
+            createStringTypeElement(hazardBody, 'weaknesses', listToString(defensesDictionary.get('weaknesses')))
+            createStringTypeElement(hazardBody, 'resistances', listToString(defensesDictionary.get('resistances')))
+        createStringTypeElement(hazardBody, 'spelldisplaymode', 'action')
+        createStringTypeElement(hazardBody, 'disable', entriesToString(hazardData.get('disable').get('entries')))
+        createStringTypeElement(hazardBody, 'reset', listToString(hazardData.get('reset'), newline))
+        createStringTypeElement(hazardBody, 'routine', entriesToString(hazardData.get('routine')))
+        stealthDictionary = hazardData.get('stealth')
+        initBonus = 0
+        if stealthDictionary:
+            stealthString = ''
+            if stealthDictionary.get('bonus'):
+                initBonus = stealthDictionary.get('bonus')
+                stealthString += '+' + str(initBonus)
+            if stealthDictionary.get('dc'):
+                stealthString += 'DC ' + str(stealthDictionary.get('dc'))
+            if stealthDictionary.get('minProf'):
+                stealthString += ' (' + stealthDictionary.get('minProf') + ')'
+            if stealthDictionary.get('notes'):
+                stealthString += ' ' + stringFormatter(stealthDictionary.get('notes'))
+            createStringTypeElement(hazardBody, 'stealth', stealthString)
+        createNumberTypeElement(hazardBody, 'init', initBonus)
+        actionsList = hazardData.get('actions')
+        reactionsString = ''
+        actionsString = ''
+        rangedAttackString = ''
+        meleeAttackString = ''
+        if actionsList:
+            for action in actionsList:
+                if action.get('type') == 'ability':
+                    if action.get('activity'):
+                        reactionsString += ('' if len(reactionsString) == 0 else newline) + abilityToString(action)
+                    else:
+                        actionsString += ('' if len(actionsString) == 0 else newline) + abilityToString(action)
+                elif action.get('type') == 'attack':
+                    if action.get('range') == 'Ranged':
+                        rangedAttackString += ('' if len(rangedAttackString) == 0 else newline) + attackStringFromAttacks([action], 'Ranged')
+                    else:
+                        meleeAttackString += ('' if len(meleeAttackString) == 0 else newline) + attackStringFromAttacks([action], 'Melee')
+        createStringTypeElement(hazardBody, 'actions', actionsString)
+        createStringTypeElement(hazardBody, 'meleeatk', meleeAttackString)
+        createStringTypeElement(hazardBody, 'rangedatk', rangedAttackString)
+        createStringTypeElement(hazardBody, 'reaction', reactionsString)
         id += 1
 
 def writeDefinition(root, naming):
@@ -959,7 +1143,6 @@ def zipping(db, definition, name):
     with zipfile.ZipFile(name + '.mod', 'a') as file:
         file.write(definition)
     print('Module Written')
-
 
 def openGameLicenseStory(rootXML):
     licenseBody = ET.SubElement(rootXML, 'id-00001')
@@ -1009,40 +1192,55 @@ def writeDBFile():
                 createMonsterSpellList = False
             input('Please drop in the spells-sublist-data.json file and then press enter')
     else:
-        createSpellsInput = input('Spell json detected.  Would you like to parse to the monsters spells list? Y/n: ')
-        if createSpellsInput != 'Y':
+        if os.path.exists('bestiary-sublist-data.json'):
+            createSpellsInput = input('Spell json detected.  Would you like to parse to the monsters spells list? Y/n: ')
+            if createSpellsInput != 'Y':
+                createMonsterSpellList = False
+        else:
             createMonsterSpellList = False
 
-    if os.path.exists('feats-sublist-data.json'):
-        writeFeatDBFile(rootXML)
-    
-    if os.path.exists('backgrounds-sublist-data.json'):
-        writeBackgrounds(rootXML)
-
-    createSpells = True
-    if createMonsterSpellList:
-        if input('Would you also like to parse spells into their own category? Y/n') != 'Y':
-            createSpells = False
-
-    if os.path.exists('spells-sublist-data.json') and createSpells:
-        writeSpells(rootXML)
-
-    if os.path.exists('bestiary-sublist-data.json'):
-        writeMonsters(rootXML, createMonsterSpellList)
-
     libraryEntries = ET.SubElement(modulesSubElement, 'entries')
-    writeLibraryEntries(libraryEntries, 'Story', 'story')
+    writeLibraryEntries(libraryEntries, 'Story', 'story')  
+
     if os.path.exists('feats-sublist-data.json'):
-        writeLibraryEntries(libraryEntries, 'Feats', 'feat')
+        if input('Parse Feats (Y)? ') == 'Y':
+            writeFeatDBFile(rootXML)
+            writeLibraryEntries(libraryEntries, 'Feats', 'feat')
     
     if os.path.exists('backgrounds-sublist-data.json'):
-        writeLibraryEntries(libraryEntries, 'Backgrounds', 'background')
-    
+        if input('Parse Backgrounds (Y)? ') == 'Y':
+            writeBackgrounds(rootXML)
+            writeLibraryEntries(libraryEntries, 'Backgrounds', 'background')
+
     if os.path.exists('spells-sublist-data.json'):
-        writeLibraryEntries(libraryEntries, 'Spells', 'spell')
-    
+        if input('Parse Spells (Y)? ') == 'Y':
+            writeSpells(rootXML)
+            writeLibraryEntries(libraryEntries, 'Spells', 'spell')
+
+    npcElement = ''
+
     if os.path.exists('bestiary-sublist-data.json'):
+        if input('Parse Monsters (Y)? ') == 'Y':
+            npcElement = ET.SubElement(rootXML, 'npc')
+            writeMonsters(npcElement, createMonsterSpellList)
+
+    if os.path.exists('afflictions-sublist-data.json'):
+        if input('Parse Afflictions (Y)? ') == 'Y':
+            writeAfflictions(rootXML)
+            writeLibraryEntries(libraryEntries, 'Afflictions', 'affliction')
+
+    if os.path.exists('hazards-sublist-data.json'):
+        if input('Parse Hazards (Y)? ') == 'Y':
+            if type(npcElement) == str:
+                npcElement = ET.SubElement(rootXML, 'npc')
+            writeHazard(npcElement, npcElement)
+
+
+    if type(npcElement) != str:
         writeLibraryEntries(libraryEntries, 'Bestiary', 'npc')
+
+          
+            
 
     tree = ET.ElementTree(rootXML)
     ET.indent(tree, '\t', level=0)
