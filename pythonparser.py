@@ -985,11 +985,12 @@ def writeAfflictions(rootXML):
         afflictionEntries = afflictionData.get('entries')
         afflictionElementsFromData = {}
         if afflictionEntries:
-            if type(afflictionEntries) == str:
+            if type(afflictionEntries[0]) == str:
                 createStringTypeElement(afflicitonBody, 'text', stringFormatter(afflictionEntries[0]))
                 afflictionElementsFromData = afflictionEntries[1]
             else:
                 afflictionElementsFromData = afflictionEntries[0]
+        
         createStringTypeElement(afflicitonBody, 'onset', afflictionElementsFromData.get('onset'))
         if afflictionElementsFromData.get('level'):
             afflictionLevel = stringFormatter(afflictionElementsFromData.get('level'))
@@ -1001,10 +1002,10 @@ def writeAfflictions(rootXML):
         if afflictionElementsFromData.get('stages'):
             for stage in afflictionElementsFromData.get('stages'):
                 stageNumber = stage.get('stage')
-                createStringTypeElement(afflicitonBody, f'stage{stageNumber}')
                 stageString = stage.get('entry')
                 if stage.get('duration'):
                     stageString += ' (' + stage.get('duration') + ')'
+                createStringTypeElement(afflicitonBody, f'stage{stageNumber}', stageString)
         id += 1
 
 def writeHazard(npcXML, hazardBody):
