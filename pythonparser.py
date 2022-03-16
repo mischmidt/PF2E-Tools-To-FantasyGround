@@ -997,8 +997,9 @@ def writeAfflictions(rootXML):
         createStringTypeElement(afflicitonBody, 'level', afflictionLevel)
         savingThrowString = ''
         if afflictionElementsFromData.get('DC'):
-            savingThrowString = str(afflictionElementsFromData.get('DC')) + ' '
+            savingThrowString = str(afflictionElementsFromData.get('DC')) + 'DC '
         savingThrowString += stringFormatter(afflictionElementsFromData.get('savingThrow'))
+        createStringTypeElement(afflicitonBody, 'saving_throw', savingThrowString)
         if afflictionElementsFromData.get('stages'):
             for stage in afflictionElementsFromData.get('stages'):
                 stageNumber = stage.get('stage')
