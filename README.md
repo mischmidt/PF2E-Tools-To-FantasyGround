@@ -18,3 +18,5 @@ PF2E OGL - https://pf2etools.com/licenses.html
 - Backgrounds
 - Spells
 - Beasts
+- Afflictions
+- Hazards
