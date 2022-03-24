@@ -353,10 +353,8 @@ def spellHeightenedListToXML(parentXML, list, elementName='heightened'):
     for entry in list:
         entryBodyElement = ET.SubElement(heightenedElement, 'p')
         entryBodyElement.text = '(+ ' + str(entry.get('level')) + ') '
-        if type(entry.get('entry')) is str:
-            entryBodyElement.text += stringFormatter(entry.get('entry'))
-        else:
-            entriesToXML(heightenedElement, entry.get('entry'))
+        entriesToXML(heightenedElement, entry.get('entries'))
+            
         
     
 
@@ -505,13 +503,15 @@ def writeBackgrounds(rootXML):
         
         id += 1
 
-def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
+def writeSingleSpell(parentXML, spell, id, spellNameAppend = '', isRitual = False):
     spellBody = ET.SubElement(parentXML, f'id-{id:05}')
     createStringTypeElement(spellBody, 'name', spell.get('name') + spellNameAppend)
     createStringTypeElement(spellBody, 'source', spell.get('source'))
     spellTypeString = 'SPELL'
     if spell.get('focus'):
         spellTypeString = 'FOCUS'
+    if isRitual:
+        spellTypeString = 'RITUAL'
     createStringTypeElement(spellBody, 'spelltype', spellTypeString)
     createStringTypeElement(spellBody, 'spelltypelabel', spellTypeString[0])
     createListToXMLString(spellBody, spell.get('traits'), 'traits')
@@ -519,10 +519,20 @@ def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
     if 'area' in spell:
         areaElement.text = stringFormatter(spell.get('area').get('entry'))
     createStringTypeElement(spellBody, 'cost', spell.get('cost'))
-    createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
+    if spell.get('duration'):
+        createStringTypeElement(spellBody, 'duration', spell.get('duration').get('entry'))
     effectsElement = ET.SubElement(spellBody, 'effects', typeFormattedText)
+    if spell.get('primaryCheck'):
+        boldTextAndBody(effectsElement, 'Primary Check ', spell.get('primaryCheck').get('entry'))
+    if spell.get('secondaryCheck'):
+        boldTextAndBody(effectsElement, 'Secondary Check ', spell.get('secondaryCheck').get('entry'))
+    if spell.get('secondaryCasters'):
+        secondaryCastersString = str(spell.get('secondaryCasters'))
+        if spell.get('secondaryCasters').get('note'):
+            secondaryCastersString += ' ' + spell.get('secondaryCasters').get('note')
+        boldTextAndBody(effectsElement, 'Secondary Casters ', secondaryCastersString)
     entriesToXML(effectsElement, spell.get('entries'), ['successDegree'])
-    if spell.get('heightened').get('heightened'):
+    if spell.get('heightened'):
         if spell.get('heightened').get('plus_x') is not None:
             properNumber = '(+' + str(spell.get('heightened').get('plus_x').get('level')) + ')'
             heightenedEntry = stringFormatter(spell.get('heightened').get('plus_x').get('entry'))
@@ -539,12 +549,13 @@ def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
         rangeElement.text = stringFormatter(spell.get('range').get('entry'))
     createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
     components = []
-    if spell.get('components').get('M'):
-        components.append('material')
-    if spell.get('components').get('S'):
-        components.append('somatic')
-    if spell.get('components').get('V'):
-        components.append('verbal')
+    if spell.get('components'):
+        if spell.get('components').get('M'):
+            components.append('material')
+        if spell.get('components').get('S'):
+            components.append('somatic')
+        if spell.get('components').get('V'):
+            components.append('verbal')
     castingElement = ET.SubElement(spellBody, 'casting', typeString)
     if 'entry' in spell.get('cast'):
         castingElement.text = stringFormatter(spell.get('cast').get('entry'))
@@ -554,7 +565,7 @@ def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
     createStringTypeElement(spellBody, 'targets', spell.get('targets'))
     spellListElement = ET.SubElement(spellBody, 'spelllists', typeString)
     superScriptsList = []
-    if spell.get('heightened').get('heightened'):
+    if spell.get('heightened'):
         superScriptsList.append('H')
     if 'Uncommon' in spell.get('traits'):
         superScriptsList.append('U')
@@ -573,15 +584,27 @@ def writeSingleSpell(parentXML, spell, id, spellNameAppend = ''):
     actionsElement = ET.SubElement(spellBody, 'actions')
     return spellBody
 
-def writeSpells(rootXML):
+def writeSpells(spellElement):
     file = open('spells-sublist-data.json')
     data = json.load(file)
     file.close()
     id = 1
-    spellElement = ET.SubElement(rootXML, 'spell')
     category = ET.SubElement(spellElement, 'category', {'name': moduleName})
     for spell in data:
         writeSingleSpell(category, spell, id)
+        id += 1
+    return id
+
+def writeRituals(spellElement, idStart = 1):
+    file = open('rituals-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    id = idStart
+    category = spellElement.find('category')
+    if type(category) == None:
+        category = ET.SubElement(spellElement, 'category', {'name': moduleName})
+    for spell in data:
+        writeSingleSpell(category, spell, id, isRitual=True)
         id += 1
 
 def perceptionStringFromMonster(beast):
@@ -969,6 +992,7 @@ def writeMonsters(beastElement, createMonsterSpellList = False):
         if beast.get('spellcasting') and createMonsterSpellList:
             parseMonsterSpells(spellsetElement, beast.get('spellcasting'), beast.get('level'))
         id += 1
+    return id
 
 def writeAfflictions(rootXML):
     file = open('afflictions-sublist-data.json')
@@ -1009,12 +1033,14 @@ def writeAfflictions(rootXML):
                 createStringTypeElement(afflicitonBody, f'stage{stageNumber}', stageString)
         id += 1
 
-def writeHazard(npcXML, hazardBody):
+def writeHazard(npcXML, hazardBody, idCount = 1):
     file = open('hazards-sublist-data.json')
     data = json.load(file)
     file.close()
-    id = 1
-    category = ET.SubElement(npcXML, 'category', {'name': moduleName})
+    id = idCount
+    category = npcXML.find('category')
+    if type(category) == None:
+        category = ET.SubElement(npcXML, 'category', {'name': moduleName})
     for hazardData in data:
         hazardBody = ET.SubElement(category, f'id-{id:05}')
         ET.SubElement(hazardBody, 'actions_interactionabilities')
@@ -1214,17 +1240,30 @@ def writeDBFile():
             writeBackgrounds(rootXML)
             writeLibraryEntries(libraryEntries, 'Backgrounds', 'background')
 
+    spellElement = None
+    lastSpell = 0
+
     if os.path.exists('spells-sublist-data.json'):
         if input('Parse Spells (Y)? ') == 'Y':
-            writeSpells(rootXML)
+            spellElement = ET.SubElement(rootXML, 'spell')
+            lastSpell = writeSpells(spellElement)
             writeLibraryEntries(libraryEntries, 'Spells', 'spell')
 
+    if os.path.exists('rituals-sublist-data.json'):
+        if input('Parse Rituals (Y)? ') == 'Y':
+            if type(spellElement) == None:
+                spellElement = ET.SubElement(rootXML, 'spell')
+                writeLibraryEntries(libraryEntries, 'Spells', 'spell')
+            writeRituals(spellElement, lastSpell)
+            
+
     npcElement = ''
+    beastIdLast = 1
 
     if os.path.exists('bestiary-sublist-data.json'):
         if input('Parse Monsters (Y)? ') == 'Y':
             npcElement = ET.SubElement(rootXML, 'npc')
-            writeMonsters(npcElement, createMonsterSpellList)
+            beastIdLast = writeMonsters(npcElement, createMonsterSpellList)
 
     if os.path.exists('afflictions-sublist-data.json'):
         if input('Parse Afflictions (Y)? ') == 'Y':
@@ -1235,7 +1274,7 @@ def writeDBFile():
         if input('Parse Hazards (Y)? ') == 'Y':
             if type(npcElement) == str:
                 npcElement = ET.SubElement(rootXML, 'npc')
-            writeHazard(npcElement, npcElement)
+            writeHazard(npcElement, npcElement, beastIdLast)
 
 
     if type(npcElement) != str:
