@@ -527,7 +527,7 @@ def writeSingleSpell(parentXML, spell, id, spellNameAppend = '', isRitual = Fals
     if spell.get('secondaryCheck'):
         boldTextAndBody(effectsElement, 'Secondary Check ', spell.get('secondaryCheck').get('entry'))
     if spell.get('secondaryCasters'):
-        secondaryCastersString = str(spell.get('secondaryCasters'))
+        secondaryCastersString = str(spell.get('secondaryCasters').get('number'))
         if spell.get('secondaryCasters').get('note'):
             secondaryCastersString += ' ' + spell.get('secondaryCasters').get('note')
         boldTextAndBody(effectsElement, 'Secondary Casters ', secondaryCastersString)
