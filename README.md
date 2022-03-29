@@ -20,3 +20,4 @@ PF2E OGL - https://pf2etools.com/licenses.html
 - Beasts
 - Afflictions
 - Hazards
+- Items
