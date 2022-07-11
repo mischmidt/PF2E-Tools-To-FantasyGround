@@ -1468,6 +1468,6 @@ def main():
     zipping(os.path.relpath('db.xml'), os.path.relpath('definition.xml'), moduleName)
 
 if __name__ == "__main__":
-    if input('Use ShadowRaven Automated Google Sheet for automation (https://docs.google.com/spreadsheets/d/14T4SN__GeuOyYg7Hs6MnTGZraOHtfwNyqESRs9VRRyE/edit#gid=0 follow link to download it as a csv)? Y/n ').lower() == 'y':
+    if input('Use ShadeRaven Automated Google Sheet for automation (https://docs.google.com/spreadsheets/d/14T4SN__GeuOyYg7Hs6MnTGZraOHtfwNyqESRs9VRRyE/edit#gid=0 follow link to download it as a csv)? Y/n ').lower() == 'y':
         createAutomation()
     main()
