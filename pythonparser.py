@@ -3,6 +3,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+import csv
 
 moduleName = 'pf2e_tools'
 typeString = {'type': 'string'}
@@ -26,6 +27,22 @@ afflictionID = 1
 backgroundID = 1
 featID = 1
 itemID = 1
+
+automationEffects = {}
+
+def createAutomation():
+    global automationEffects
+    with open('PF2 Bestiary 1 - Automation tracker - Creatures.csv', 'r') as automationFile:
+        automationReader = csv.reader(automationFile)
+        # Gets rid of the first line
+        creatureName = ''
+        # Creates a look up table
+        for line in automationReader:
+            if line[0]:
+                creatureName = line[0]
+            if not automationEffects.get(creatureName):
+                automationEffects[creatureName] = {}
+            automationEffects[creatureName].update({line[3] : line[5]})
 
 def stringFormatter(s):
     if s is None:
@@ -277,7 +294,7 @@ def entriesToString(entries):
     output = xmlToFormattedString(holding)
     return output
 
-def abilityToNameAndDescription(parentXML, dictionary, oneLine = False, oneLineName = ''):
+def abilityToNameAndDescription(parentXML, dictionary, oneLine = False, oneLineName = '', monsterName = ''):
     nameString = ''
     descriptionString = ''
     if 'activity' in dictionary:
@@ -318,6 +335,12 @@ def abilityToNameAndDescription(parentXML, dictionary, oneLine = False, oneLineN
     else:
         createStringTypeElement(parentXML, 'name', nameString)
         createStringTypeElement(parentXML, 'desc', descriptionString)
+        if monsterName:
+            global automationEffects
+            if automationEffects.get(monsterName):
+                if automationEffects.get(monsterName).get(dictionary.get('name')):
+                    createStringTypeElement(parentXML, 'automation', automationEffects.get(monsterName).get(dictionary.get('name')), False)
+
 
 def abilityToString(dictionary):
     output = ''
@@ -326,9 +349,9 @@ def abilityToString(dictionary):
     output = xmlToFormattedString(holding)
     return output
 
-def monsterAbilityToXML(parentXML, dictionary, number):
+def monsterAbilityToXML(parentXML, dictionary, number, monsterName = ''):
     bodyElement = ET.SubElement(parentXML, f'id-{number:05}')
-    abilityToNameAndDescription(bodyElement, dictionary)
+    abilityToNameAndDescription(bodyElement, dictionary, monsterName = monsterName)
 
 def optionListToString(optionsList):
     output = ''
@@ -372,11 +395,14 @@ def createNumberTypeElement(parentXML, elementName, elementBody):
     if elementBody is not None:
         genericBody.text = str(elementBody)
 
-def createStringTypeElement(parentXML, elementName, elementBody):
+def createStringTypeElement(parentXML, elementName, elementBody, format = True):
     genericBody = ET.SubElement(parentXML, elementName, typeString)
     genericBody.text = ''
     if elementBody is not None:
-        genericBody.text = stringFormatter(elementBody)
+        if format:
+            genericBody.text = stringFormatter(elementBody)
+        else:
+            genericBody.text = elementBody
 
 def createListToXMLString(parentXML, list, elementName, toUpper=True):
     listElement = ET.SubElement(parentXML, elementName, typeString)
@@ -985,15 +1011,15 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
     interactionAbilitiesElement = ET.SubElement(beastBody, 'actions_interactionabilities')
     if beast.get('abilitiesTop') is not None:
         for i in range(0, len(beast.get('abilitiesTop'))):
-            monsterAbilityToXML(interactionAbilitiesElement, beast.get('abilitiesTop')[i], i + 1)
+            monsterAbilityToXML(interactionAbilitiesElement, beast.get('abilitiesTop')[i], i + 1, beast.get('name'))
     offensiveProactiveElement = ET.SubElement(beastBody, 'actions_offensiveproactive')
     if beast.get('abilitiesBot') is not None:
         for i in range(0, len(beast.get('abilitiesBot'))):
-            monsterAbilityToXML(offensiveProactiveElement, beast.get('abilitiesBot')[i], i + 1)
+            monsterAbilityToXML(offensiveProactiveElement, beast.get('abilitiesBot')[i], i + 1, beast.get('name'))
     reactiveAbilitiesElement = ET.SubElement(beastBody, 'actions_reactiveabilities')
     if beast.get('abilitiesMid') is not None:
         for i in range(0, len(beast.get('abilitiesMid'))):
-            monsterAbilityToXML(reactiveAbilitiesElement, beast.get('abilitiesMid')[i], i + 1)
+            monsterAbilityToXML(reactiveAbilitiesElement, beast.get('abilitiesMid')[i], i + 1, beast.get('name'))
     innateSpellString = ''
     focusSpellString = ''
     focusPointBase = 0
@@ -1442,4 +1468,6 @@ def main():
     zipping(os.path.relpath('db.xml'), os.path.relpath('definition.xml'), moduleName)
 
 if __name__ == "__main__":
+    if input('Use ShadowRaven Automated Google Sheet for automation (https://docs.google.com/spreadsheets/d/14T4SN__GeuOyYg7Hs6MnTGZraOHtfwNyqESRs9VRRyE/edit#gid=0 follow link to download it as a csv)? Y/n ').lower() == 'y':
+        createAutomation()
     main()
