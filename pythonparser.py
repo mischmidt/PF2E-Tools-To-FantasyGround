@@ -1206,7 +1206,8 @@ def writeSingleItem(item):
     createStringTypeElement(itemBody, 'type', listToString(item.get('category')))
     createStringTypeElement(itemBody, 'subtype', item.get('subCategory'))
     createNumberTypeElement(itemBody, 'level', item.get('level'))
-    createStringTypeElement(itemBody, 'traits', listToString(item.get('traits')))
+    traitsString = listToString(item.get('traits'))
+    
     createStringTypeElement(itemBody, 'methodofuse', item.get('usage'))
     createStringTypeElement(itemBody, 'bulk', item.get('bulk'))
     activationInfo = item.get('activate')
@@ -1249,6 +1250,12 @@ def writeSingleItem(item):
     createStringTypeElement(itemBody, 'access', item.get('access'))
     if item.get('ammunition'):
         createStringTypeElement(itemBody, 'ammunition', listToString(item.get('ammunition')))
+    if item.get('comboWeaponData'):
+        createNumberTypeElement(itemBody, 'combination_weapon', 1)
+        createStringTypeElement(itemBody, 'combination_damage', item.get('comboWeaponData').get('damage'))
+        createStringTypeElement(itemBody, 'combination_damagetype', damageTypeKey[item.get('comboWeaponData').get('damageType')])
+        createStringTypeElement(itemBody, 'combination_group', item.get('comboWeaponData').get('group'))
+        createStringTypeElement(itemBody, 'combination_traits', traitsString + ', ' + listToString(item.get('comboWeaponData').get('traits')))
     if item.get('weaponData'):
         weaponDataInfo = item.get('weaponData')
         createStringTypeElement(itemBody, 'damage', weaponDataInfo.get('damage'))
@@ -1258,8 +1265,10 @@ def writeSingleItem(item):
         createNumberTypeElement(itemBody, 'reload', weaponDataInfo.get('reload'))
         createNumberTypeElement(itemBody, 'range', weaponDataInfo.get('range'))
         createStringTypeElement(itemBody, 'properties', listToString(weaponDataInfo.get('traits')))
-    if item.get('comboWeaponData'):
-        print('Unsupported Fantasy Ground weapon info.  Manual adding is needed for the additional attack info for weapon: ' + item.get('name'))
+        if item.get('weaponData').get('traits'):
+            traitsString += ', ' + listToString(item.get('weaponData').get('traits'))
+    createStringTypeElement(itemBody, 'traits', traitsString)
+    
     if item.get('armorData'):
         armorDataInfo = item.get('armorData')
         createNumberTypeElement(itemBody, 'ac', armorDataInfo.get('ac'))
