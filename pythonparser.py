@@ -18,6 +18,7 @@ libraryNameKeys = {'npc' : 'Bestiary', 'story' : 'Story', 'affliction' : 'Afflic
 rootXML = None
 libraryEntries = None
 damageTypeKey = {'S' : 'slashing', 'P' : 'piercing', 'B' : 'bludgeoning', 'modular' : 'slashing, piercing, or bludgeoning'}
+savingTypeKey = {'F': 'Fortitude', 'R': 'Reflex', 'W': 'Will'}
 
 categoryElementTag = {'name': moduleName}
 
@@ -608,7 +609,8 @@ def writeSingleSpell(spell, spellNameAppend = '', isRitual = False, id=None, new
             spellHeightenedListToXML(spellBody,  spell.get('heightened').get('x'))
     createNumberTypeElement(spellBody, 'level', spell.get('level'))
     createStringTypeElement(spellBody, 'requirements', spell.get('requirements'))
-    createStringTypeElement(spellBody, 'savingthrow', spell.get('savingThrow'))
+    if spell.get('savingThrow'):
+        createStringTypeElement(spellBody, 'savingthrow', savingThrowToString(spell.get('savingThrow')))
     createListToXMLString(spellBody, spell.get('traditions'), 'traditions', False)
     rangeElement = ET.SubElement(spellBody, 'range', typeString)
     if 'range' in spell:
@@ -704,6 +706,13 @@ def savingThrowsDictToString(savingThrows):
                 output += f"({entries} {savingThrows.get(throw).get(entries)}) "
         output += ', '
     return output[:-2]
+
+def savingThrowToString(savingThrow):
+    types = []
+    for type in savingThrow.get('type'):
+        types.append(savingTypeKey[type])
+    
+    return ', '.join(types)
 
 def skillsDictToString(skillsDictionary = {}):
     output = ''
