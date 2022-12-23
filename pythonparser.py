@@ -1276,7 +1276,7 @@ def writeSingleItem(item):
         ET.SubElement(entriesElement, 'p').text = contractDictToString(item.get('contract'))
     entriesToXML(entriesElement, item.get('entries'))
     createStringTypeElement(itemBody, 'cost', priceDictToString(item.get('price')))
-    createStringTypeElement(itemBody, 'craftrequirements', item.get('craftReq'))
+    createStringTypeElement(itemBody, 'craftrequirements', listToString(item.get('craftReq')))
     shieldDataInfo = item.get('shieldData')
     if shieldDataInfo:
         createNumberTypeElement(itemBody, 'speedpenalty', shieldDataInfo.get('speedPen'))
