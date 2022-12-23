@@ -991,9 +991,10 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
     else:
         createNumberTypeElement(beastBody, 'init', 0)
     languageString = ''
-    if beast.get('languages') is not None:
-        combinedLanguages = beast.get('languages').get('languages')
-        combinedLanguages.extend(beast.get('languages').get('languageAbilities'))
+    languages = beast.get('languages')
+    if languages:
+        combinedLanguages = languages.get('languages') or []
+        combinedLanguages.extend(languages.get('abilities') or [])
         languageString = listToString(combinedLanguages)
     createStringTypeElement(beastBody, 'languages', languageString)
     createNumberTypeElement(beastBody, 'level', beast.get('level'))
