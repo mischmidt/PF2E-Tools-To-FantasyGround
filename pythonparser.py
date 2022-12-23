@@ -675,13 +675,16 @@ def perceptionBodyToString(body):
         if perception == 'default':
             continue
         output += '(+' + str(body.get('perception').get(perception)) + ' ' + perception + '); '
-    if body.get('senses') is not None:
+    if body.get('senses'):
         for sense in body.get('senses'):
-            if sense == 'other':
-                output += listToString(body.get('senses').get(sense)) + ', '
-            else:
-                for typing in body.get('senses').get(sense):
-                    output += '(' + sense + ') ' + typing + ', '
+            output += sense.get('name')
+            sense_type = sense.get('type')
+            sense_range = sense.get('range')
+            if sense_type:
+                output += ' (' + sense_type + ')'
+            if sense_range:
+                output += f' {sense_range} ft'
+            output += ', '
         output = output[:-2]
     return output
 
