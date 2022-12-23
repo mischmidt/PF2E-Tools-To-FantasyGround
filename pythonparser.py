@@ -195,10 +195,11 @@ def hrToXML(parentXML, entries):
 
 def successDegreeToXML(parentXML, success):
     root = ET.SubElement(parentXML, 'list')
-    for states in success:
+    for state in success:
         successRate = ET.SubElement(root, 'li')
-        successRate.text = boldString(states)
-        successRate.text = stringFormatter(success.get(states))
+        successRate.text = boldString(state)
+        description = success.get(state)
+        successRate.text += stringFormatter(description)
 
 
 def listToXML(parentXML, list):
