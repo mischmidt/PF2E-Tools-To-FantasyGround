@@ -19,6 +19,7 @@ rootXML = None
 libraryEntries = None
 damageTypeKey = {'S' : 'slashing', 'P' : 'piercing', 'B' : 'bludgeoning', 'modular' : 'slashing, piercing, or bludgeoning'}
 savingTypeKey = {'F': 'Fortitude', 'R': 'Reflex', 'W': 'Will'}
+componentTypeKey = {'F': 'focus', 'M': 'material', 'S': 'somatic', 'V': 'verbal'}
 
 categoryElementTag = {'name': moduleName}
 
@@ -618,12 +619,8 @@ def writeSingleSpell(spell, spellNameAppend = '', isRitual = False, id=None, new
     createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
     components = []
     if spell.get('components'):
-        if spell.get('components').get('M'):
-            components.append('material')
-        if spell.get('components').get('S'):
-            components.append('somatic')
-        if spell.get('components').get('V'):
-            components.append('verbal')
+        for comp in spell.get('components')[0]:
+            components.append(componentTypeKey[comp])
     castingElement = ET.SubElement(spellBody, 'casting', typeString)
     if 'entry' in spell.get('cast'):
         castingElement.text = stringFormatter(spell.get('cast').get('entry'))
