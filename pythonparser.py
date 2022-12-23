@@ -409,7 +409,10 @@ def createStringTypeElement(parentXML, elementName, elementBody, format = True):
     genericBody.text = ''
     if elementBody is not None:
         if format:
-            genericBody.text = stringFormatter(elementBody)
+            if type(elementBody) is list:
+                genericBody.text = listToString(elementBody, newline)
+            else:
+                genericBody.text = stringFormatter(elementBody)
         else:
             genericBody.text = elementBody
 
