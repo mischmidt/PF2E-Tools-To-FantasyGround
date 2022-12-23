@@ -206,6 +206,9 @@ def successDegreeToXML(parentXML, success):
 
 
 def listToXML(parentXML, list):
+    if list is None:
+        return
+    
     root = ET.SubElement(parentXML, 'list')
     for item in list:
         bulletPoint = ET.SubElement(root, 'li')
@@ -502,7 +505,7 @@ def writeSingleFeat(feat):
     specialText = ET.SubElement(special, 'p')
     specialText.text = ''
     if 'special' in feat:
-        specialText.text = stringFormatter(feat.get('special'))
+        specialText.text = listToXML(special, feat.get('special'))
 
     createStringTypeElement(featBody, 'traits', listToString(feat.get('traits')).upper())
     createStringTypeElement(featBody, 'trigger', feat.get('trigger'))
