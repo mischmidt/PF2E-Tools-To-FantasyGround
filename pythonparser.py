@@ -199,7 +199,10 @@ def successDegreeToXML(parentXML, success):
         successRate = ET.SubElement(root, 'li')
         successRate.text = boldString(state)
         description = success.get(state)
-        successRate.text += stringFormatter(description)
+        if type(description) == list:
+            successRate.text += stringFormatter(', '.join(description))
+        else:
+            successRate.text += stringFormatter(description)
 
 
 def listToXML(parentXML, list):
