@@ -14,7 +14,7 @@ actionParser = {'1' : '[a]&#141;', '2' : '[a]&#143;', '3' : "[a]&#144;", 'R' : '
 numbersToProperNumber = {0 : 'Cantrips', 1 : '1st', 2 : '2nd', 3 : '3rd', 4 : '4th', 5 : '5th', 6 : '6th', 7 : '7th', 8 : '8th', 9 : '9th', 10 : '10th'}
 numbersToWordNumber = {1 : 'Once', 2 : 'Twice', 3 : 'Three', 4 : 'Four', 5 : 'Five', 6 : 'Six', 7 : 'Seven', 8 : 'Eight', 9 : 'Nine'}
 newline = '[newline]'
-libraryNameKeys = {'npc' : 'Bestiary', 'story' : 'Story', 'affliction' : 'Afflictions', 'feat' : 'Feats', 'background' : 'Backgrounds', 'spell' : 'Spells', 'item' : 'Items'}
+libraryNameKeys = {'trait' : 'Traits', 'npc' : 'Bestiary', 'story' : 'Story', 'affliction' : 'Afflictions', 'feat' : 'Feats', 'background' : 'Backgrounds', 'spell' : 'Spells', 'item' : 'Items'}
 rootXML = None
 libraryEntries = None
 damageTypeKey = {'S' : 'slashing', 'P' : 'piercing', 'B' : 'bludgeoning', 'modular' : 'slashing, piercing, or bludgeoning'}
@@ -28,6 +28,7 @@ afflictionID = 1
 backgroundID = 1
 featID = 1
 itemID = 1
+traitID = 1
 
 automationEffects = {}
 
@@ -98,7 +99,7 @@ def entriesToXML(parentXML, entries, skipTypes=[]):
     for entry in entries:
         if type(entry) is not dict:
             baseEntry = ET.SubElement(parentXML, 'p')
-            baseEntry.text = stringFormatter(entry)
+            baseEntry.text = listToString(entry)
         else:
             entryType = entry.get('type')
             if entryType in skipTypes:
@@ -1414,6 +1415,24 @@ def writeItems():
     for item in data:
         writeSingleItem(item)
 
+def writeSingleTrait(trait):
+    global traitID
+    traitXML = getBody('trait')
+    category = getCategory(traitXML)
+    traitBody = ET.SubElement(category, f'id-{traitID:05}')
+    createStringTypeElement(traitBody, 'name', trait.get('name'))
+    createStringTypeElement(traitBody, 'traittype', listToString(trait.get('categories')))
+    traitDetails = ET.SubElement(traitBody, 'details', typeFormattedText)
+    entriesToXML(traitDetails, trait.get('entries'), ['entriesOtherSource'])
+    traitID += 1
+
+def writeTraits():
+    file = open('traits-sublist-data.json')
+    data = json.load(file)
+    file.close()
+    for trait in data:
+        writeSingleTrait(trait)
+
 def writeDefinition(root, naming):
     nameBody = ET.SubElement(root, 'name')
     nameBody.text = naming
@@ -1482,6 +1501,10 @@ def writeDBFile():
         if input('Parse Feats (Y)? ') == 'Y':
             writeFeats()
     
+    if os.path.exists('traits-sublist-data.json'):
+        if input('Parse Traits (Y)?') == 'Y':
+            writeTraits()
+
     if os.path.exists('backgrounds-sublist-data.json'):
         if input('Parse Backgrounds (Y)? ') == 'Y':
             writeBackgrounds()

@@ -21,3 +21,4 @@ PF2E OGL - https://pf2etools.com/licenses.html
 - Afflictions
 - Hazards
 - Items
+- Traits
