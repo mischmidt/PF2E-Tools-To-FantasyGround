@@ -1,1 +1,7 @@
 .vscode
+*.json
+*.xml
+pullGoogleSheet.py
+*.cvs
+Notes.txt
+analyzingInfo.py

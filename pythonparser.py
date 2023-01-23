@@ -18,6 +18,7 @@ libraryNameKeys = {'npc' : 'Bestiary', 'story' : 'Story', 'affliction' : 'Afflic
 rootXML = None
 libraryEntries = None
 damageTypeKey = {'S' : 'slashing', 'P' : 'piercing', 'B' : 'bludgeoning', 'modular' : 'slashing, piercing, or bludgeoning'}
+savingThrowShortToLong = {'W' : 'Will', 'R' : 'Reflex', 'F' : 'Fortitude'}
 
 categoryElementTag = {'name': moduleName}
 
@@ -62,6 +63,9 @@ def stringFormatter(s):
                 parsing = re.split('\|\|', parsing)[1]
             parsing = re.sub('\|(.+)', '', parsing)
         entrySafe += parsing.replace('\n', ' ')
+    entrySafe = entrySafe.replace('<', '')
+    entrySafe = entrySafe.replace('>', '')
+
     return entrySafe
 
 
@@ -128,8 +132,28 @@ def entryTypeToXML(parentXML, entry, entryType):
         return
     elif entryType == 'attack':
         createStringTypeElement(parentXML, 'p', attackStringFromAttacks([entry], entry.get('range')))
+    elif entryType == 'data':
+        dataEntryType(parentXML, entry)
+    elif entryType == 'pf2-h4':
+        pf2SampleBoxToXML(parentXML, entry)
     else:
-        print('Unhandled Entry type: ' + entry.get('type'))
+        print('Unhandled Entry type: ' + str(entry.get('type')))
+
+def dataEntryType(parentXML, entry):
+    linked = ET.SubElement(parentXML, 'linklist')
+    subLink = ET.SubElement(linked, 'link')
+    data = {}
+    if entry.get('tag') == 'creature':
+        id = writeSingleMonster(entry.get('data'), True)
+        data = {'class': 'npc', 'recordname': 'npc.'+ intToId(id)}
+        subLink.text = 'NPC: ' + entry.get('data').get('name')
+    elif entry.get('tag') == 'affliction':
+        id = writeSingleAffliction(entry.get('data'))
+        data = {'class' : getClassName('affliction'), 'recordname' : 'affliction.' + intToId(id)}
+        subLink.text = 'Affliction: ' + entry.get('data').get('name')
+    else:
+        print('Unhandled Data Entry type: ' + entry.get('tag'))
+    subLink.attrib = data
 
 def pf2SampleBoxToXML(parentXML, dictionary):
     titleElement = ET.SubElement(parentXML, 'h')
@@ -198,7 +222,7 @@ def successDegreeToXML(parentXML, success):
     for states in success:
         successRate = ET.SubElement(root, 'li')
         successRate.text = boldString(states)
-        successRate.text = stringFormatter(success.get(states))
+        successRate.text = listToString(success.get(states), '\n')
 
 
 def listToXML(parentXML, list):
@@ -341,6 +365,20 @@ def abilityToNameAndDescription(parentXML, dictionary, oneLine = False, oneLineN
                 if automationEffects.get(monsterName).get(dictionary.get('name')):
                     createStringTypeElement(parentXML, 'automation', automationEffects.get(monsterName).get(dictionary.get('name')), False)
 
+def spellSavingThrowToString(savingThrow):
+    output = ''
+    if savingThrow is None:
+        return ''
+    if savingThrow.get('basic'):
+        output += 'basic '
+    saves = 0
+    global savingThrowShortToLong
+    for typ in savingThrow.get('type'):
+        if saves > 0:
+            output += ' or '
+        output += savingThrowShortToLong[typ]
+    return output
+        
 
 def abilityToString(dictionary):
     output = ''
@@ -376,17 +414,25 @@ def communicationListToXML(list, body):
     for communication in list:
         ET.SubElement(body, 'p').text = stringFormatter(communicationDictToString(communication))
 
-def listToString(list, inbetween = ', '):
+def listToString(lis, inbetween = ', '):
     output = ''
-    if list is None:
+    if lis is None:
         return ''
-    if type(list) is str:
-        return stringFormatter(list)
-    endLength = len(list)
-    for i in range(0, endLength):
-        output += stringFormatter(list[i])
-        if i < endLength - 1:
-            output += inbetween
+    if type(lis) is str:
+        return stringFormatter(lis)
+    endLength = len(lis)
+    if type(lis) is list:
+        for i in range(0, endLength):
+            if type(lis[i]) is str:
+                output += stringFormatter(lis[i])
+            elif type(lis[i]) is dict:
+                output += entriesToString(lis[i])
+            else: 
+                print('Unhandled type in list to string function.  Type is ' + str(type(lis[i])))
+            if i < endLength - 1:
+                output += inbetween
+    if type(lis) is dict:
+        output += entriesToString(lis)
     return output
 
 def createNumberTypeElement(parentXML, elementName, elementBody):
@@ -400,7 +446,10 @@ def createStringTypeElement(parentXML, elementName, elementBody, format = True):
     genericBody.text = ''
     if elementBody is not None:
         if format:
-            genericBody.text = stringFormatter(elementBody)
+            if type(elementBody) is int:
+                genericBody.text = str(elementBody)
+            else:
+                genericBody.text = listToString(elementBody, '\n')
         else:
             genericBody.text = elementBody
 
@@ -447,6 +496,7 @@ def writeLibraryEntries(name):
     libraryLink = ET.SubElement(libraryFeat, 'librarylink', {
                                 'type': 'windowreference'})
     libraryClass = ET.SubElement(libraryLink, 'class')
+    global moduleName
     libraryClass.text = 'reference_list'
     recordName = ET.SubElement(libraryLink, 'recordname')
     recordName.text = '..'
@@ -454,6 +504,10 @@ def writeLibraryEntries(name):
     libraryType.text = libraryNameKeys[name]
     recordType = ET.SubElement(libraryFeat, 'recordtype', typeString)
     recordType.text = name
+
+def getClassName(name):
+    global moduleName
+    return 'reference' + '_' + name
 
 def getBody(name = ''):
     body = rootXML.find(name)
@@ -498,11 +552,12 @@ def writeSingleFeat(feat):
     specialText = ET.SubElement(special, 'p')
     specialText.text = ''
     if 'special' in feat:
-        specialText.text = stringFormatter(feat.get('special'))
+        specialText.text = listToString(feat.get('special'), '\n')
 
     createStringTypeElement(featBody, 'traits', listToString(feat.get('traits')).upper())
     createStringTypeElement(featBody, 'trigger', feat.get('trigger'))
     featID += 1
+    return featID - 1
     
 def writeFeats():
     file = open('feats-sublist-data.json')
@@ -547,6 +602,7 @@ def writeSingleBackground(background):
     createStringTypeElement(backgroundBody, 'trainedskill', optionListToString(background.get('skills')))
 
     backgroundID += 1
+    return backgroundID - 1
 
 def writeBackgrounds():
     file = open('backgrounds-sublist-data.json')
@@ -601,7 +657,7 @@ def writeSingleSpell(spell, spellNameAppend = '', isRitual = False, id=None, new
             spellHeightenedListToXML(spellBody,  spell.get('heightened').get('x'))
     createNumberTypeElement(spellBody, 'level', spell.get('level'))
     createStringTypeElement(spellBody, 'requirements', spell.get('requirements'))
-    createStringTypeElement(spellBody, 'savingthrow', spell.get('savingThrow'))
+    createStringTypeElement(spellBody, 'savingthrow', spellSavingThrowToString(spell.get('savingThrow')))
     createListToXMLString(spellBody, spell.get('traditions'), 'traditions', False)
     rangeElement = ET.SubElement(spellBody, 'range', typeString)
     if 'range' in spell:
@@ -609,11 +665,11 @@ def writeSingleSpell(spell, spellNameAppend = '', isRitual = False, id=None, new
     createStringTypeElement(spellBody, 'trigger', spell.get('trigger'))
     components = []
     if spell.get('components'):
-        if spell.get('components').get('M'):
+        if 'M' in spell.get('components'):
             components.append('material')
-        if spell.get('components').get('S'):
+        if 'S' in spell.get('components'):
             components.append('somatic')
-        if spell.get('components').get('V'):
+        if 'V' in spell.get('components'):
             components.append('verbal')
     castingElement = ET.SubElement(spellBody, 'casting', typeString)
     if 'entry' in spell.get('cast'):
@@ -661,19 +717,38 @@ def writeRituals():
 def perceptionBodyToString(body):
     if body.get('perception') is None:
         return ''
-    output = 'Perception +' + str(body.get('perception').get('default')) + '; '
+    output = 'Perception +' + str(body.get('perception').get('std')) + '; '
     for perception in body.get('perception'):
-        if perception == 'default':
+        if perception == 'std':
             continue
         output += '(+' + str(body.get('perception').get(perception)) + ' ' + perception + '); '
     if body.get('senses') is not None:
         for sense in body.get('senses'):
-            if sense == 'other':
+            if sense.get('name') == 'other':
                 output += listToString(body.get('senses').get(sense)) + ', '
             else:
-                for typing in body.get('senses').get(sense):
-                    output += '(' + sense + ') ' + typing + ', '
+                if sense.get('type') is not None:
+                    output += stringFormatter(sense.get('type')) + ' '
+                if sense.get('name') is not None:
+                    output += stringFormatter(sense.get('name')) + ' '
+                if sense.get('range') is not None:
+                    output += rangeUnitsToString(sense.get('range')) + ' '
+                output = output[:-1]
+                output += '; '
+                # for typing in body.get('senses').get(sense):
+                #     output += '(' + sense + ') ' + typing + ', '
         output = output[:-2]
+    return output
+
+def rangeUnitsToString(entry):
+    output = ''
+    if type(entry) is int:
+        output += str(entry) + 'ft'
+    elif type(entry) is dict:
+        output += str(entry.get('number')) + ' '
+        output += stringFormatter(entry.get('unit'))
+    else:
+        print('Unhandled Range Typing on monster sense')
     return output
 
 def contractDictToString(contract):
@@ -688,10 +763,10 @@ def savingThrowsDictToString(savingThrows):
     output = ''
     for throw in savingThrows:
         output += throw + ': '
-        if savingThrows.get(throw).get('default'):
-            output += str(savingThrows.get(throw).get('default'))
+        if savingThrows.get(throw).get('std'):
+            output += str(savingThrows.get(throw).get('std'))
         for entries in savingThrows.get(throw):
-            if entries == 'default':
+            if entries == 'std':
                 continue
             else:
                 output += f"({entries} {savingThrows.get(throw).get(entries)}) "
@@ -701,9 +776,9 @@ def savingThrowsDictToString(savingThrows):
 def skillsDictToString(skillsDictionary = {}):
     output = ''
     for skill in skillsDictionary:
-        output += skill + ' +' + str(skillsDictionary.get(skill).get('default'))
+        output += skill + ' +' + str(skillsDictionary.get(skill).get('std'))
         for specificSkill in skillsDictionary.get(skill):
-            if specificSkill == 'default':
+            if specificSkill == 'std':
                 continue
             output += '(+' + str(skillsDictionary.get(skill).get(specificSkill)) + ' ' + specificSkill + ')'
         output += ', '
@@ -817,7 +892,14 @@ def spellFromSpellCasting(casting):
     genericSpellString = ''
     if casting is None:
         return genericSpellString
-    genericSpellString += casting.get('name')
+    if casting.get('name') is None:
+        quickString = ''
+        quickString += casting.get('tradition')
+        quickString = quickString[0].upper() + quickString[1:]
+        quickString += ' ' + casting.get('type') + ' Spells'
+        genericSpellString += quickString
+    else:
+        genericSpellString += casting.get('name')
     if casting.get('DC') is not None:
         genericSpellString += ' DC ' + str(casting.get('DC'))
     if casting.get('attack') is not None:
@@ -831,25 +913,27 @@ def spellFromSpellCasting(casting):
 def acDictToString(acDict):
     acText = ''
     if acDict is not None:
-        acText += str(acDict.get('default'))
+        acText += str(acDict.get('std'))
         for acEntries in acDict:
-            if acEntries == 'default' or acEntries == 'abilities':
+            if acEntries == 'std' or acEntries == 'abilities':
                 continue
             acText += ' (' + str(acDict.get(acEntries)) + ' ' + acEntries + ' ' + ')'
         acAbilities = acDict.get('abilities')
         if acAbilities is not None:
-            acText += '; ' + acAbilities + ';'
+            acText += '; ' + listToString(acAbilities) + ';'
     return acText
 
 def immunitiesToString(immunityDict):
     immunitiesString = ''
-    if immunityDict is not None:
+    if immunityDict is dict:
         immunities = []
         if immunityDict.get('damage') is not None:
             immunities.extend(immunityDict.get('damage'))
         if immunityDict.get('condition') is not None:
             immunities.extend(immunityDict.get('condition'))
         immunitiesString = listToString(immunities)
+    elif immunityDict is list:
+        immunitiesString = listToString(immunityDict)
     return immunitiesString
 
 def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
@@ -936,28 +1020,31 @@ def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
 def writeSingleMonster(beast, createMonsterSpellList = False):
     global npcID
     beastBody = ET.SubElement(getCategory(getBody('npc')), f'id-{npcID:05}')
-    createStringTypeElement(beastBody, 'ac', acDictToString(beast.get('ac')))
+    defenses = beast.get('defenses')
+    createStringTypeElement(beastBody, 'ac', acDictToString(defenses.get('ac')))
     createStringTypeElement(beastBody, 'category', moduleName + ' ' + beast.get('source'))
     abilityModsEntry = beast.get('abilityMods')
     if abilityModsEntry is not None:
-        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('Str'))
-        createNumberTypeElement(beastBody, 'dexterity', abilityModsEntry.get('Dex'))
-        createNumberTypeElement(beastBody, 'constitution', abilityModsEntry.get('Con'))
-        createNumberTypeElement(beastBody, 'intelligence', abilityModsEntry.get('Int'))
-        createNumberTypeElement(beastBody, 'wisdom', abilityModsEntry.get('Wis'))
-        createNumberTypeElement(beastBody, 'charisma', abilityModsEntry.get('Cha'))
-    saves = beast.get('savingThrows')
+        createNumberTypeElement(beastBody, 'strength', abilityModsEntry.get('str'))
+        createNumberTypeElement(beastBody, 'dexterity', abilityModsEntry.get('dex'))
+        createNumberTypeElement(beastBody, 'constitution', abilityModsEntry.get('con'))
+        createNumberTypeElement(beastBody, 'intelligence', abilityModsEntry.get('int'))
+        createNumberTypeElement(beastBody, 'wisdom', abilityModsEntry.get('wis'))
+        createNumberTypeElement(beastBody, 'charisma', abilityModsEntry.get('cha'))
+    saves = defenses.get('savingThrows')
     if saves is not None:
-        createNumberTypeElement(beastBody, 'fortitudesave', saves.get('Fort').get('default'))
-        createNumberTypeElement(beastBody, 'reflexsave', saves.get('Ref').get('default'))
-        createNumberTypeElement(beastBody, 'willsave', saves.get('Will').get('default'))
+        createNumberTypeElement(beastBody, 'fortitudesave', saves.get('fort').get('std'))
+        createNumberTypeElement(beastBody, 'reflexsave', saves.get('ref').get('std'))
+        createNumberTypeElement(beastBody, 'willsave', saves.get('will').get('std'))
         createStringTypeElement(beastBody, 'saveabilities', saves.get('abilities'))
-    if beast.get('hardness') is not None:
+    if defenses.get('hardness') is not None:
         createStringTypeElement(beastBody, 'hardness', str(beast.get('hardness')))
-    createNumberTypeElement(beastBody, 'hp', beast.get('hp')[0].get('hp'))
+    
+    if defenses.get('hp') is not None:
+        createNumberTypeElement(beastBody, 'hp', defenses.get('hp')[0].get('hp'))
     hpAbilities = ''
-    if beast.get('hp') is not None:
-        for hpEntries in beast.get('hp'):
+    if defenses.get('hp') is not None:
+        for hpEntries in defenses.get('hp'):
             if hpEntries.get('note') is not None:
                 hpAbilities += boldString(hpEntries.get('note')) + ' '
             hpAbilities += str(hpEntries.get('hp')) + ' '
@@ -966,22 +1053,25 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
         if hpAbilities.replace(' ', '').isdigit():
             hpAbilities = ''
     createStringTypeElement(beastBody, 'hpabilities', hpAbilities)        
-    createStringTypeElement(beastBody, 'immunities', immunitiesToString(beast.get('immunities')))
+    createStringTypeElement(beastBody, 'immunities', immunitiesToString(defenses.get('immunities')))
     if beast.get('perception') is not None:
-        createNumberTypeElement(beastBody, 'init', beast.get('perception').get('default'))
+        createNumberTypeElement(beastBody, 'init', beast.get('perception').get('std'))
     else:
         createNumberTypeElement(beastBody, 'init', 0)
     languageString = ''
     if beast.get('languages') is not None:
-        combinedLanguages = beast.get('languages').get('languages')
-        combinedLanguages.extend(beast.get('languages').get('languageAbilities'))
+        combinedLanguages = []
+        if beast.get('languages').get('languages') is not None:
+            combinedLanguages.extend(beast.get('languages').get('languages'))
+        if beast.get('languages').get('abilities') is not None:
+            combinedLanguages.extend(beast.get('languages').get('abilities'))
         languageString = listToString(combinedLanguages)
     createStringTypeElement(beastBody, 'languages', languageString)
     createNumberTypeElement(beastBody, 'level', beast.get('level'))
     createStringTypeElement(beastBody, 'name', beast.get('name'))
     createStringTypeElement(beastBody, 'nonid_name', '')
-    createStringTypeElement(beastBody, 'resistances', weaknessAndResistanceToString(beast.get('resistances')))
-    createStringTypeElement(beastBody, 'weaknesses', weaknessAndResistanceToString(beast.get('weaknesses')))
+    createStringTypeElement(beastBody, 'resistances', weaknessAndResistanceToString(defenses.get('resistances')))
+    createStringTypeElement(beastBody, 'weaknesses', weaknessAndResistanceToString(defenses.get('weaknesses')))
     createStringTypeElement(beastBody, 'senses', perceptionBodyToString(beast))
     createStringTypeElement(beastBody, 'items', listToString(beast.get('items')))
     createStringTypeElement(beastBody, 'skills', skillsDictToString(beast.get('skills')))
@@ -1059,6 +1149,7 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
     if beast.get('spellcasting') and createMonsterSpellList:
         parseMonsterSpells(spellsetElement, beast.get('spellcasting'), beast.get('level'))
     npcID += 1
+    return npcID - 1
 
 def writeMonsters(createMonsterSpellList = False):
     file = open('bestiary-sublist-data.json')
@@ -1075,14 +1166,22 @@ def writeSingleAffliction(afflictionData):
     createStringTypeElement(afflicitonBody, 'traits', listToString(afflictionData.get('traits')))
     afflictionEntries = afflictionData.get('entries')
     afflictionElementsFromData = afflictionData
+    afflictionText = ''
     if afflictionEntries:
-        if type(afflictionEntries[0]) == str:
-            createStringTypeElement(afflicitonBody, 'text', stringFormatter(afflictionEntries[0]))
-            afflictionElementsFromData = afflictionEntries[1]
-        else:
-            afflictionElementsFromData = afflictionEntries[0]
-    
-    createStringTypeElement(afflicitonBody, 'onset', afflictionElementsFromData.get('onset'))
+        for x in range(len(afflictionEntries)):
+            if type(afflictionEntries[x]) == dict:
+                afflictionElementsFromData = afflictionEntries[x]
+            else:
+                afflictionText += stringFormatter(afflictionEntries[0]) + ' '
+        # if type(afflictionEntries[0]) == str:
+        #     createStringTypeElement(afflicitonBody, 'text', stringFormatter(afflictionEntries[0]))
+        #     afflictionElementsFromData = afflictionEntries[1]
+        # else:
+        #     afflictionElementsFromData = afflictionEntries[0]
+    createStringTypeElement(afflicitonBody, 'text', afflictionText)
+
+    if afflictionElementsFromData is not None:
+        createStringTypeElement(afflicitonBody, 'onset', afflictionElementsFromData.get('onset'))
     if afflictionElementsFromData.get('level'):
         afflictionLevel = stringFormatter(afflictionElementsFromData.get('level'))
     createStringTypeElement(afflicitonBody, 'level', afflictionLevel)
@@ -1099,6 +1198,7 @@ def writeSingleAffliction(afflictionData):
                 stageString += ' (' + stage.get('duration') + ')'
             createStringTypeElement(afflicitonBody, f'stage{stageNumber}', stageString)
     afflictionID += 1
+    return afflictionID - 1
 
 def writeAfflictions():
     file = open('afflictions-sublist-data.json')
@@ -1141,13 +1241,13 @@ def writeSingleHazard(hazardData):
             valuesList = hpElement.keys()
         createStringTypeElement(hazardBody, 'ac', acDictToString(defensesDictionary.get('ac')))
         if defensesDictionary.get('bt'):
-            createNumberTypeElement(hazardBody, 'bt', defensesDictionary.get('bt').get('default'))
+            createNumberTypeElement(hazardBody, 'bt', defensesDictionary.get('bt').get('std'))
         if defensesDictionary.get('hp'):
-            createNumberTypeElement(hazardBody, 'hp', defensesDictionary.get('hp').get('default'))
+            createNumberTypeElement(hazardBody, 'hp', defensesDictionary.get('hp').get('std'))
         hardnessString = ''
         for value in valuesList:
             hardnessNameString = value
-            if value == 'default':
+            if value == 'std':
                 hardnessNameString = ''
             if hardnessElement:
                 hardnessString += hardnessNameString + ' Hardness ' + str(hardnessElement.get(value)) + ', '
@@ -1210,6 +1310,7 @@ def writeSingleHazard(hazardData):
     createStringTypeElement(hazardBody, 'rangedatk', rangedAttackString)
     createStringTypeElement(hazardBody, 'reaction', reactionsString)
     npcID += 1
+    return npcID - 1
 
 def writeHazard():
     file = open('hazards-sublist-data.json')
@@ -1304,6 +1405,7 @@ def writeSingleItem(item):
         createNumberTypeElement(itemBody, 'speedpenalty', armorDataInfo.get('speedPen'))
         createStringTypeElement(itemBody, 'group', armorDataInfo.get('group'))
     itemID += 1
+    return itemID - 1
 
 def writeItems():
     file = open('items-sublist-data.json')
@@ -1342,6 +1444,8 @@ def openGameLicenseStory(rootXML):
             body = ET.SubElement(textBody, 'p')
             body.text = line
 
+def intToId(number):
+    return f'id-{number:05}'
 
 def usageRequirementsStory(rootXML):
     licenseBody = ET.SubElement(rootXML, 'id-00002')
