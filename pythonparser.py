@@ -865,16 +865,8 @@ def acDictToString(acDict):
             acText += '; ' + acAbilities + ';'
     return acText
 
-def immunitiesToString(immunityDict):
-    immunitiesString = ''
-    if immunityDict is not None:
-        immunities = []
-        if immunityDict.get('damage') is not None:
-            immunities.extend(immunityDict.get('damage'))
-        if immunityDict.get('condition') is not None:
-            immunities.extend(immunityDict.get('condition'))
-        immunitiesString = listToString(immunities)
-    return immunitiesString
+def immunitiesToString(immunityList):
+    return listToString(immunityList)
 
 def parseMonsterSpells(monsterSpellListXML, spellLists, characterLevel):
     spellListData = {}
