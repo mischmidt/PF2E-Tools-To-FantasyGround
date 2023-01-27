@@ -973,17 +973,20 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
         if defenses.get('hardness') is not None:
             createStringTypeElement(beastBody, 'hardness', str(defenses.get('hardness')))
         hpAbilities = ''
-    if beast.get('hp') is not None:
-        for hpEntries in beast.get('hp'):
-            if hpEntries.get('note') is not None:
-                hpAbilities += boldString(hpEntries.get('note')) + ' '
-            hpAbilities += str(hpEntries.get('hp')) + ' '
-            if hpEntries.get('abilities') is not None:
-                hpAbilities += listToString(hpEntries.get('abilities')) + ' '
-        if hpAbilities.replace(' ', '').isdigit():
-            hpAbilities = ''
-    createStringTypeElement(beastBody, 'hpabilities', hpAbilities)        
-    createStringTypeElement(beastBody, 'immunities', immunitiesToString(beast.get('immunities')))
+        if defenses.get('hp') is not None:
+            createNumberTypeElement(beastBody, 'hp', defenses.get('hp')[0].get('hp'))
+            for hpEntries in defenses.get('hp'):
+                if hpEntries.get('note') is not None:
+                    hpAbilities += boldString(hpEntries.get('note')) + ' '
+                hpAbilities += str(hpEntries.get('hp')) + ' '
+                if hpEntries.get('abilities') is not None:
+                    hpAbilities += listToString(hpEntries.get('abilities')) + ' '
+            if hpAbilities.replace(' ', '').isdigit():
+                hpAbilities = ''
+        createStringTypeElement(beastBody, 'hpabilities', hpAbilities)        
+        createStringTypeElement(beastBody, 'immunities', immunitiesToString(defenses.get('immunities')))
+        createStringTypeElement(beastBody, 'resistances', weaknessAndResistanceToString(defenses.get('resistances')))
+        createStringTypeElement(beastBody, 'weaknesses', weaknessAndResistanceToString(defenses.get('weaknesses')))
     if beast.get('perception') is not None:
         createNumberTypeElement(beastBody, 'init', beast.get('perception').get('default'))
     else:
@@ -998,8 +1001,6 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
     createNumberTypeElement(beastBody, 'level', beast.get('level'))
     createStringTypeElement(beastBody, 'name', beast.get('name'))
     createStringTypeElement(beastBody, 'nonid_name', '')
-    createStringTypeElement(beastBody, 'resistances', weaknessAndResistanceToString(beast.get('resistances')))
-    createStringTypeElement(beastBody, 'weaknesses', weaknessAndResistanceToString(beast.get('weaknesses')))
     createStringTypeElement(beastBody, 'senses', perceptionBodyToString(beast))
     createStringTypeElement(beastBody, 'items', listToString(beast.get('items')))
     createStringTypeElement(beastBody, 'skills', skillsDictToString(beast.get('skills')))
