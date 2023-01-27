@@ -970,10 +970,9 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
             createNumberTypeElement(beastBody, 'reflexsave', saves.get('ref').get('std'))
             createNumberTypeElement(beastBody, 'willsave', saves.get('will').get('std'))
             createStringTypeElement(beastBody, 'saveabilities', saves.get('abilities'))
-    if beast.get('hardness') is not None:
-        createStringTypeElement(beastBody, 'hardness', str(beast.get('hardness')))
-    createNumberTypeElement(beastBody, 'hp', beast.get('hp')[0].get('hp'))
-    hpAbilities = ''
+        if defenses.get('hardness') is not None:
+            createStringTypeElement(beastBody, 'hardness', str(defenses.get('hardness')))
+        hpAbilities = ''
     if beast.get('hp') is not None:
         for hpEntries in beast.get('hp'):
             if hpEntries.get('note') is not None:
