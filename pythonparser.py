@@ -99,7 +99,8 @@ def entriesToXML(parentXML, entries, skipTypes=[]):
             baseEntry.text = stringFormatter(entry)
         else:
             entryType = entry.get('type')
-            if entryType in skipTypes:
+            
+            if entryType in skipTypes or entryType is None:
                 continue
             entryTypeToXML(parentXML, entry, entryType)
 
