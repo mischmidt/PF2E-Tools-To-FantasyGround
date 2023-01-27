@@ -387,17 +387,21 @@ def communicationListToXML(list, body):
         ET.SubElement(body, 'p').text = stringFormatter(communicationDictToString(communication))
 
 def listToString(list, inbetween = ', '):
-    output = ''
     if list is None:
         return ''
     if type(list) is str:
         return stringFormatter(list)
-    endLength = len(list)
-    for i in range(0, endLength):
-        output += stringFormatter(list[i])
-        if i < endLength - 1:
-            output += inbetween
-    return output
+
+    output = []
+
+    for entry in list:
+        try:
+            output.append(stringFormatter(entry))
+        except TypeError:
+            print(entry)
+            raise
+        
+    return inbetween.join(output)
 
 def createNumberTypeElement(parentXML, elementName, elementBody):
     genericBody = ET.SubElement(parentXML, elementName, typeNumber)
