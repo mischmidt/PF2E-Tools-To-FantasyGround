@@ -962,12 +962,14 @@ def writeSingleMonster(beast, createMonsterSpellList = False):
         createNumberTypeElement(beastBody, 'intelligence', abilityModsEntry.get('Int'))
         createNumberTypeElement(beastBody, 'wisdom', abilityModsEntry.get('Wis'))
         createNumberTypeElement(beastBody, 'charisma', abilityModsEntry.get('Cha'))
-    saves = beast.get('savingThrows')
-    if saves is not None:
-        createNumberTypeElement(beastBody, 'fortitudesave', saves.get('Fort').get('default'))
-        createNumberTypeElement(beastBody, 'reflexsave', saves.get('Ref').get('default'))
-        createNumberTypeElement(beastBody, 'willsave', saves.get('Will').get('default'))
-        createStringTypeElement(beastBody, 'saveabilities', saves.get('abilities'))
+    defenses = beast.get('defenses')
+    if defenses:
+        saves = defenses.get('savingThrows')
+        if saves is not None:
+            createNumberTypeElement(beastBody, 'fortitudesave', saves.get('fort').get('std'))
+            createNumberTypeElement(beastBody, 'reflexsave', saves.get('ref').get('std'))
+            createNumberTypeElement(beastBody, 'willsave', saves.get('will').get('std'))
+            createStringTypeElement(beastBody, 'saveabilities', saves.get('abilities'))
     if beast.get('hardness') is not None:
         createStringTypeElement(beastBody, 'hardness', str(beast.get('hardness')))
     createNumberTypeElement(beastBody, 'hp', beast.get('hp')[0].get('hp'))
